@@ -1,0 +1,55 @@
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+legaldmlab::primeR(analysis_type = "Bayes")
+```
+
+## Summarizing effects
+
+These two give summaries of ALL effects, including the sigma parameter and the Log Posterior Density (lp\_\_)
+
+```{r}
+brms::posterior_summary(b4.3) # includes a REGION-BASED, QUANTILE uncertainty interval
+
+parameters::model_parameters(b4.3) # includes a DENSITY-BASED uncertainty interval, and full posterior summary
+```
+
+These two are probably what you'll want to use. They give you info on only the main effects. No sigma, and no lp\_\_.
+
+***Best command to use for summarizing effects is*** `bayestestR::describe_posterior`
+
+```{r}
+brms::fixef(b4.3) # a Quantile (REGION-BASED) interval around the point-estimate
+
+bayestestR::describe_posterior(b4.3) # DENSITY-BASED interval; and info on the size and existence of effects (ROPE + PD)
+```
+
+Do note though that the table that is printed in the console/in RMarkdown when you use `describe_posterior` is cleaned up and formatted...if you save this table in the environment, it will be a regular data frame with un-rounded columns, etc.
+
+If you want to save the table exactly how it is printed (i.e., rounded to two decimals, ROPE and CI columns combined in APA style, etc.), pipe `describe_posterior` to `insight::format_table()`.
+
+## Extracting draws from the posterior
+
+Kurz uses `brms::posterior_samples` in his translation books but this is DEPRICATED. Use one of the following commands instead.
+
+Best bet is to use `tidy_draws`; see [here](SEE%20https://mjskay.github.io/tidybayes/articles/tidy-brms.html#introduction) for info. The {tidybayes} package follows the tidyverse format.
+
+```{r}
+insight::get_parameters(b4.3) |> head() # comparable to posterior_samples, except it doesn't give you samples for lp__
+
+tidybayes::tidy_draws(b4.3) |> head() # USE THIS ONE. {tidybayes} is useful for extracting draws in a form and manner consistent w/ the tidyverse.
+```
+
+## Extracting draws from the Prior Predictive Distribution
+
+```{r}
+brms::prior_draws()
+```
+
+## Diagnostics
+
+{bayesplot} is good for diagnostic plots: <https://mc-stan.org/bayesplot/>
+
+## Plotting intervals, Bayes factors, ROPE's, and posteriors
+
+<https://easystats.github.io/see/articles/bayestestR.html>

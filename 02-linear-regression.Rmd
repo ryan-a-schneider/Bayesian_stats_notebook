@@ -1,0 +1,251 @@
+```{r setup, include=FALSE}
+
+pacman::p_load(tidyverse, brms, rstanarm, easystats)
+
+survey=legaldmlab::survey |> janitor::clean_names()
+
+# Frequentist model for reference/comparison of results
+reference_model=lm(moptim~sex + child + mnegaff, data=survey)
+```
+
+## Simple Linear Regression
+
+In classic linear regression, the mean (or "center") of a normally distribution variable is assumed to be a linear function of the parameters $\alpha$ and $\beta$, like so:
+
+$$
+\mu_i=\alpha + \beta*X
+$$
+
+Thus, in classic linear regression, each mean, $\mu_i$, is a function of $\alpha$ (the intercept, a constant) and $\beta$ (the slope; i.e., the rate at which the observed-variable X changes the mean).
+
+Linear regression is no longer just estimating parameters. Instead, it uses the relationship above to predict values of $\mu$, based on the other parameters in the model.
+
+### Priors in a Bayesian linear regression
+
+The above model has three parameters that need priors: $\alpha$, $\beta$, and the accompanying $\sigma$ for the former, since this is a normally distributed model.
+
+#### *I. Prior on the location/average value* ($\alpha$)
+
+This used to be $\mu$ when we were only doing estimation. Now it is the intercept.
+
+-   *Interpretation:* It is the expected value for the DV when all IV's are held at zero. *Set this prior equal to what your expectations would be for the average/expected value of your DV, before you entered any IV's into the model*. Where is your DV, on average, by itself?
+
+-   *Example*: In a model of height where the average height of individuals is expected to be 178cm, and whole sample means should be within 40cm ($\pm2$ SD's; 1 SD= 20cm) of this mean of means, the prior would be: $$\alpha {\sim} Normal(178, 20)$$
+
+-   *Setting in brms:* `Class = Intercept` is the prior for where the regression line crosses the y-intercept.
+
+#### *II. Prior for the variability of alpha for individuals (*$\sigma$)
+
+-   While the sigma value in the intercept prior describes the variability of whole groups about the mean, this prior for $\sigma$ describes the variability of individuals about the mean. This value is necessary to include in the model because by definition, a normally distributed variable has a mean and some variation about the mean. Thus, the posterior is a joint distribution $Pr(\mu,\sigma)$ . Ultimately, however, since this is a "nuisance" parameter we don't care about, this parameter will be integrated out, and the final posterior we interpret will be a marginal posterior that describes uncertainty in $\mu$ accounting for all possible values of $\sigma$
+
+-   Example: In the same model of height above, *individuals* are expected to be within 100cm of the center/average value (1 SD= 50cm). The prior would be:$$\sigma {\sim} uniform(0,50)$$
+
+-   *Setting in brms:* `Class = sigma` is for the sigma parameter, describing the spread of individual deviations from the mean.
+
+#### III. Prior on the $\beta$ parameter (the regression coefficients).
+
+-   These are the slopes that answer the question, "*what is the change expected in the DV, when variable X changes by 1 unit?"* Priors for beta coefficients should always be centered on zero to allow the possibility of a zero-effect (relation) with the DV
+
+-   *Example:*
+
+-   *Setting in brms:* `Class = b` is for beta weights / (regression) coefficients.
+
+## Basic R code for linear regression
+
+### brms
+
+```{r}
+brms_fit <-brm(moptim ~ 1,
+               family = gaussian(link = "identity"),
+               data = survey,                
+               prior = c(
+                 prior(normal(3, 2), class = Intercept), # expected mean and dev. of DV, on the scale of the DV's unit
+                 prior(normal(0, 3), class= sigma), 
+                 prior(normal(0, 3), class = b, coef= sexMALES),
+               iter = 28000, warmup = 27000, chains = 3, cores = 3, seed = 4))
+```
+
+-   Setting `class=b` and *not* specifying the coefficient sets the same prior for *all* regression coefficients
+
+### rstanarm
+
+```{r}
+rstan_fit=stan_glm(moptim ~ 1 + sex + child + mnegaff, 
+                    family= gaussian(link = "identity"), data= survey, 
+                    prior = student_t(3,location=c(0,0,0), scale=c(3,3,3), autoscale = FALSE),
+                    #prior_intercept = normal(), 
+                    algorithm = c("sampling"), 
+                    mean_PPD = TRUE,
+                    adapt_delta = 0.95, 
+                    chains=3, iter=4000, cores=3)
+```
+
+-   `adapt_delta` is
+
+-   `mean_PPD` is
+
+-   `algorithm=c("sampling")` is
+
+-   
+
+In this example model...
+
+-   ***Intercept:*** Individuals are expected to be at an average of 3 (out of a possible 5) on their level of optimism; and 95% of individuals will be within 2 SD's of 3
+
+-   ***Effects:*** The priors for all effects are centered at 0 to indicate a possible zero rate of change (slope) with the DV; and the slope is likely within 3 units
+
+-   ***Sigma:*** Individuals are expected to vary from the average of 3 on the DV by 3 units; 95% of people will be no more than 6 away from the center of the group average
+
+```{r}
+
+brms_fit <-brm(moptim ~ 1 + sex + child + mnegaff,
+               family = gaussian(link = "identity"),
+               data = survey,                
+               prior = c(
+                 prior(normal(3, 2), class = Intercept), # expected mean and dev. of DV, on the scale of the DV's unit
+                 prior(normal(0, 3), class= sigma), # expected variation of individuals from Intercept's Prior mean
+                 # expected slopes for effects
+                 prior(normal(0, 3), class = b, coef= sexMALES),
+                 prior(normal(0, 3), class = b, coef= childYES),
+                 prior(normal(0, 3), class = b, coef= mnegaff)), # expected variation of individuals from Intercept's prior
+               iter = 28000, warmup = 27000, chains = 3, cores = 3, seed = 4)
+
+
+rstan_fit=stan_glm(moptim ~ 1 + sex + child + mnegaff, 
+                    family= gaussian(link = "identity"), data= survey, 
+                    prior = student_t(3,location=c(0,0,0), scale=c(3,3,3), autoscale = FALSE),
+                    #prior_intercept = normal(), 
+                    algorithm = c("sampling"), 
+                    mean_PPD = TRUE,
+                    adapt_delta = 0.95, 
+                    chains=3, iter=4000, cores=3)
+```
+
+### Diagnostic checks
+
+```{r}
+# grab diagnostic info for both MCMC models
+diagnostics=list(rstan_model=rstan_fit,
+                 brms_model=brms_fit) |> 
+  map(diagnostic_posterior)
+
+# interpret diagnostic info
+diagnostics |> map_df(select, contains("ESS")) |> map(interpret_ess)
+diagnostics |> map_df(select, contains("Rhat")) |> map(interpret_rhat)
+```
+
+All chains converged; and both and have sufficient ESS. Parameter values can be interpreted...
+
+### Results
+
+Compare parameter estimates of all three models...
+
+```{r}
+list(rstan_fit,brms_fit, reference_model) |> 
+  map(model_parameters)
+```
+
+*Interpretations of unstandardized coefficients and parameters*
+
+-   $\beta$ for sex:
+
+    -   Females are on average 0.09 units higher on optimism than males
+
+    -   **EFFECT EXISTANCE:** By frequentest standards, this effect is not statistically significant, *p*=.187. In the Bayesian framework, the effect is also uncertain to exist, *pd=*91%
+
+    -   **EFFECT IMPORTANCE/SIZE:** The effect of sex is likely too small to be meaningful (39% in ROPE)
+
+-   $\beta$ for child:
+
+    -   Those who have children are 0.14 points higher on optimism than those who do not.
+
+    -   In the frequentest framework, this effect is statistically significant, *p*=.045, 95% CI [.00, .27].
+
+    -   In the Bayesian framework, this effect likely exists (*pd= 97.79%*), but is of undecided/questionable importance (16.64% of values in ROPE).
+
+-   $\beta$ for mnegaff:
+
+    -   Participant's mean level of negative affect decreases 0.34 points for every 1-unit decrease in the DV, optimism
+
+    -   This effect is statistically significant, *p*\<.001
+
+    -   In Bayesian, the effect definitely exists (95% HDI [-.44, -.24] *pd=*100%) and is estimated to be large enough to be of practical importance (0% in ROPE)
+
+-   $\alpha$, the Intercept value: The predicted optimism score is 4.32, before considering the information captured by other variables (sex, whether they have a child, or what their mean level of negative affect is)
+
+## Multiple Regression
+
+Considering an example from McElreath Ch. 5: Predicting divorce rates.
+
+```{r}
+data(WaffleDivorce, package = "rethinking")
+d <- WaffleDivorce
+
+d <-
+  d %>% 
+  mutate(d = rethinking::standardize(Divorce),
+         m = rethinking::standardize(Marriage),
+         a = rethinking::standardize(MedianAgeMarriage))
+
+head(d)
+```
+
+### Components of the model
+
+***The data (i.e., the Dependent Variable)***
+
+-   Variable *Divorce Rate of State* is the primary DV, which we'll label as $D_i$. Variable $D_i$ is normally distributed around some mean:
+
+    -   $D_i {\sim}Normal(\mu, \sigma)$
+
+    -   This formula represents the likelihood function that generates our data
+
+***The predictor(s)***
+
+-   Our first IV is *Median age at time of marriage,* which we will mark as parameter $A$
+
+***The full linear model***
+
+Our linear model thus predicts our data, $D_i$, is a linear function of parameters $\alpha$ (some constant) and $A$, like so: $\mu_i=\alpha+\beta_AA_i$
+
+### Setting Priors
+
+> Since the outcome and the predictor are both standardized, the intercept $\alpha$ should end up very close to zero.
+
+-   So our prior for the intercept is $\alpha {\sim}Normal(0,0.2)$. This is pretty strict. But it makes sense.
+
+And likewise, if the standard deviation on our slope parameter for our predictor, $\beta_A$, is 0.5, that means that a change in 1 SD change in marriage is associated with a 1 SD change in divorce. How strong is this? Does this make sense? Check the data to see how big 1 SD is for $A$
+
+```{r}
+sd(d$MedianAgeMarriage)
+```
+
+Turns out it's 1.2. So...
+
+> a change of 1.2 years in median age at marriage is associated with a full standard deviation change in the outcome variable.
+>
+> [Going up or down just barely over a year in age of marriage will swing the value of the DV a full standard deviation as well]
+>
+> That seems like an insanely strong relationship. The prior above thinks that only 5% of plausable slopes are more extreme than 1.
+
+...but we're going to stick with it for the moment and model it like this anyway to see what it looks like.
+
+-   Prior for slope is $\beta_A {\sim} Normal(0,0.5)$.
+
+-   Finally, prior for $\sigma$ is $\sigma {\sim}Exponential(1)$.
+
+Time to make the model go brrrr
+
+```{r}
+b5.1 <- 
+  brm(data = d, 
+      family = gaussian,
+      d ~ 1 + a,
+      prior = c(prior(normal(0, 0.2), class = Intercept),
+                prior(normal(0, 0.5), class = b),
+                prior(exponential(1), class = sigma)),
+      iter = 2000, warmup = 1000, chains = 4, cores = 4,
+      seed = 5,
+      sample_prior = T,
+      file = "../fits/b05.01")
+```

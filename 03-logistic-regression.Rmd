@@ -1,0 +1,191 @@
+```{r setup, include=FALSE}
+legaldmlab::primeR(analysis_type = "Bayes")
+```
+
+## Logistic Regression
+
+The formula for logistic regression is:
+
+$$
+logit(\mu)=\beta_0 + \beta_1x_1 + \beta_2x_2
+$$
+
+When $X_1$ goes up by one unit (on whatever scale it's on), then the $logit(\mu)$ increases by amount $\beta_1$ ; When $X_2$ increases by 1 unit, $logit(\mu)$ increases by $\beta_2$.
+
+## brms
+
+SEE HERE: <https://bookdown.org/ajkurz/DBDA_recoded/dichotomous-predicted-variable.html>
+
+Generic code for logistic regression using a ***Bernoulli*** distribution. Kurz: ***This syntax presumes the predictor variables have already been standardized.***
+
+```{r}
+fit <-
+  brm(data = my_data, 
+      family = bernoulli,
+      y ~ 1 + x1 + x2,
+      prior = c(prior(normal(0, 2), class = Intercept),
+                prior(normal(0, 2), class = b)))
+```
+
+Code for using a ***Binomial*** distribution
+
+```{r}
+fit <-
+  brm(data = my_data, 
+      family = binomial,
+      y | trials(1) ~ 1 + x1 + x2,
+      prior = c(prior(normal(0, 2), class = Intercept),
+                prior(normal(0, 2), class = b)))
+```
+
+***The results of these two should be the same as long as the data are not aggregated--but the binomial version requires the DV to be of integer or double structure, not as a factor***. This makes sense, because non-aggregated data would be categorical: In a single trial, the outcome is either A or B, true or false, etc. Aggregated data would be a sum/tally of A's, trues, successes, etc.
+
+In **brms**, the default link for both `family = bernoulli` and `family = binomial` models is `logit`.
+
+Also, note the additional `| trials(1)` syntax on the left side of the model formula. You could get away with omitting this in older versions of **brms**. But newer versions bark at you to specify how many of trials each row in the data represents. This is because, as with the baseball data we'll use later in the chapter, the binomial distribution includes an n parameter. When working with un-aggregated data like what we're about to do, below, it's presumed that n=1.
+
+Lastly, note that *not specifying the coefficient in the* `class = b` line will apply that prior to all effects.
+
+*HOW TO STANDARDIZE*
+
+```{r}
+my_data <-
+  my_data %>% 
+  mutate(height_z = (height - mean(height)) / sd(height),
+         weight_z = (weight - mean(weight)) / sd(weight))
+```
+
+## Further details
+
+-   `iter` sets the number of iterations ("steps") per chain...
+
+## Example models from Kruschke's DBDA
+
+```{r}
+
+my_data=read.csv("C:/Users/rschn/OneDrive/R Sandbox/Data Repository/Kruschke data/HtWtData110.csv")
+
+my_data <-
+  my_data %>% 
+  mutate(height_z = (height - mean(height)) / sd(height),
+         weight_z = (weight - mean(weight)) / sd(weight))
+
+head(my_data)
+
+# model with just weight
+fit1 <-
+  brm(data = my_data, 
+      family = bernoulli,
+      male ~ 1 + weight_z,
+      prior = c(prior(normal(0, 2), class = Intercept),
+                prior(normal(0, 2), class = b)),
+      iter = 2500, warmup = 500, chains = 4, cores = 4,
+      seed = 21)
+
+# model with height and weight
+fit2 <-
+  brm(data = my_data, 
+      family = bernoulli,
+      male ~ 1 + weight_z + height_z,
+      prior = c(prior(normal(0, 2), class = Intercept),
+                prior(normal(0, 2), class = b)),
+      iter = 2500, warmup = 500, chains = 4, cores = 4,
+      seed = 21)
+
+# frequentest model for reference
+ref_model_1=glm(male ~ 1 + weight_z, data = my_data, family = "binomial")
+ref_model_2=glm(male ~ 1 + weight_z + height_z, data = my_data, family = "binomial")
+
+
+
+
+models_logit=tibble(
+  
+  frequentist_models=list(
+    ref_model_1=glm(male ~ 1 + weight_z, data = my_data, family = "binomial"),
+    ref_model_2=glm(male ~ 1 + weight_z + height_z, data = my_data, family = "binomial")
+  ),
+  # model with just weight
+  bayesian_models=list(
+    fit1= brm(data = my_data, 
+               family = bernoulli,
+               male ~ 1 + weight_z,
+               prior = c(prior(normal(0, 2), class = Intercept),
+                         prior(normal(0, 2), class = b)),
+               iter = 2500, warmup = 500, chains = 4, cores = 4,
+               seed = 21),
+
+    # model with height and weight
+    fit2= brm(data = my_data, 
+               family = bernoulli,
+               male ~ 1 + weight_z + height_z,
+               prior = c(prior(normal(0, 2), class = Intercept),
+                         prior(normal(0, 2), class = b)),
+               iter = 2500, warmup = 500, chains = 4, cores = 4,
+               seed = 21)
+  )
+  
+)
+
+fit2_test=update(fit2, formula. =  ~ . - height_z)
+```
+
+-   *Still need to know more about* `iter`, `warmup`, `chains`, and `seed`.
+
+-   Also, can you do a student-t prior in brms?
+
+## Test models from my thesis
+
+```{r}
+
+load("C:/Github stuff/Studies/psychlaw_methods_project/study1_thesis/Data and Models/pubdata.RData")
+head(pubdata)
+
+thesis_model_reference=glm(Accept_Reject ~ Guilt + PTS + Discount, data = pubdata, family = "binomial")
+
+
+thesis_model_brm=brm(data = pubdata,
+                     family = bernoulli,
+                     Accept_Reject ~ 1 + Guilt + Discount + PTS,
+                     prior = c(prior(normal(0, 2), class = Intercept),
+                               prior(normal(0, 2), class = b)),
+                     iter = 5000, warmup = 1000, chains = 4, cores = 4, seed = 21)
+
+
+thesis_model_brm2=brm(data = pubdata,
+                     family = binomial,
+                     Accept_Reject | trials(1) ~ 1 + Guilt + Discount + PTS,
+                     prior = c(prior(normal(0, 2), class = Intercept),
+                               prior(normal(0, 2), class = b)),
+                     iter = 5000, warmup = 1000, chains = 4, cores = 4, seed = 21)
+
+list(Frequentest_Model=thesis_model_reference,
+     Bayesian_Model_Bernoulli=thesis_model_brm) |> 
+  map(parameters)
+
+```
+
+## Interpreting the parameters in logistic models
+
+See here: <https://bookdown.org/ajkurz/DBDA_recoded/dichotomous-predicted-variable.html#interpreting-the-regression-coefficients>
+
+## rstanarm
+
+```{r}
+ pts2_Bayes_ogm=stan_glm(accept ~ grp_all, 
+                    family= binomial(link = "logit"), 
+                    data= data_by_condition$pts_2, 
+                    prior = priors,
+                    #prior_intercept = normal(), 
+                    algorithm = c("sampling"), 
+                    mean_PPD = TRUE,
+                    adapt_delta = 0.95, 
+                    #QR = FALSE, 
+                    #sparse = FALSE,
+                    chains=4,iter=60000,cores=4, # 5-6k steps fine if not using Bayes factors; 50-60k if using them.
+                    diagnostic_file=file.path(tempdir(), "df2.csv")) # can delete this if not using Bayes factors
+```
+
+## Details
+
+-   `mean_PPD` is for sampling from the Prior Predictive Distribution...
