@@ -97,37 +97,6 @@ ref_model_1=glm(male ~ 1 + weight_z, data = my_data, family = "binomial")
 ref_model_2=glm(male ~ 1 + weight_z + height_z, data = my_data, family = "binomial")
 
 
-
-
-models_logit=tibble(
-  
-  frequentist_models=list(
-    ref_model_1=glm(male ~ 1 + weight_z, data = my_data, family = "binomial"),
-    ref_model_2=glm(male ~ 1 + weight_z + height_z, data = my_data, family = "binomial")
-  ),
-  # model with just weight
-  bayesian_models=list(
-    fit1= brm(data = my_data, 
-               family = bernoulli,
-               male ~ 1 + weight_z,
-               prior = c(prior(normal(0, 2), class = Intercept),
-                         prior(normal(0, 2), class = b)),
-               iter = 2500, warmup = 500, chains = 4, cores = 4,
-               seed = 21),
-
-    # model with height and weight
-    fit2= brm(data = my_data, 
-               family = bernoulli,
-               male ~ 1 + weight_z + height_z,
-               prior = c(prior(normal(0, 2), class = Intercept),
-                         prior(normal(0, 2), class = b)),
-               iter = 2500, warmup = 500, chains = 4, cores = 4,
-               seed = 21)
-  )
-  
-)
-
-fit2_test=update(fit2, formula. =  ~ . - height_z)
 ```
 
 -   *Still need to know more about* `iter`, `warmup`, `chains`, and `seed`.

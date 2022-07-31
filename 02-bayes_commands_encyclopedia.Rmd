@@ -1,0 +1,278 @@
+---
+title: "Untitled"
+output: html_document
+date: '2022-07-15'
+---
+
+```{r setup, include=FALSE}
+
+pacman::p_load(tidyverse, bayesplot, tidybayes, brms, easystats)
+```
+
+## Some preliminary set up
+
+Lets build two simple models to run all the following code on
+
+```{r}
+# ========================= LINEAR ===============================================
+data(WaffleDivorce, package = "rethinking")
+d <- WaffleDivorce
+
+d <-
+  d %>% 
+  mutate(d = rethinking::standardize(Divorce),
+         m = rethinking::standardize(Marriage),
+         a = rethinking::standardize(MedianAgeMarriage))
+
+b5.3 <- 
+  brm(data = d, 
+      family = gaussian,
+      d ~ 1 + m + a,
+      prior = c(prior(normal(0, 0.2), class = Intercept),
+                prior(normal(0, 0.5), class = b),
+                prior(exponential(1), class = sigma)),
+      iter = 2000, warmup = 1000, chains = 4, cores = 4, seed = 5)
+
+
+# ========================= LOGISTIC ===============================================
+
+my_data=read.csv("C:/Users/rschn/OneDrive/R Sandbox/Data Repository/Kruschke data/HtWtData110.csv")
+
+my_data <-
+  my_data %>% 
+  mutate(height_z = (height - mean(height)) / sd(height),
+         weight_z = (weight - mean(weight)) / sd(weight))
+
+logistic_fit <-
+  brm(data = my_data, 
+      family = bernoulli,
+      male ~ 1 + weight_z + height_z,
+      prior = c(prior(normal(0, 2), class = Intercept),
+                prior(normal(0, 2), class = b)),
+      iter = 2500, warmup = 500, chains = 4, cores = 4,
+      seed = 21)
+```
+
+### Fitting additional models
+
+If you want to fit multiple models to test and see which is best, rather than make a huge code block with copy-pasted code of a slew of models, better to make use of the `update()` function, which updates an original model by refitting it with the specified changes.
+
+The example below refits and creates a second version of the logistic model above by removing one of the predictors.
+
+```{r}
+logistic_fit2=update(fit2, formula. =  ~ . - height_z)
+```
+
+## Summarizing effects
+
+These two give summaries of ALL effects, including the sigma parameter and the Log Posterior Density (lp\_\_)
+
+```{r}
+brms::posterior_summary(b5.3)
+
+parameters::model_parameters(b5.3)
+
+# ====================================================================================
+
+brms::fixef(b5.3)
+
+bayestestR::describe_posterior(b5.3) # most detailed info on the posterior main effects
+```
+
+The two below are probably what you'll want to use. They give you info on *only the main effects*. No sigma, and no lp\_\_.
+
+-   Do note though that the table that is printed in the console/in RMarkdown when you use `describe_posterior` is cleaned up and formatted...if you save this table in the environment, it will be a regular data frame with un-rounded columns, etc.
+
+-   If you want to save the table exactly how it is printed in the console (i.e., rounded to two decimals, ROPE and CI columns combined in APA style, etc.), to export an APA formatted table, pipe `describe_posterior` to `insight::format_table()`.
+
+```{r}
+describe_posterior(b5.3) |> format_table()
+```
+
+## Extracting \_\_\_ from the \_\_\_
+
+### ...draws from the posterior
+
+-   These commands draw samples of *parameter values* from the posterior.
+
+-   Kurz uses `brms::posterior_samples` in his translation books but this is DEPRICATED. Best bet is to use `tidy_draws`; see [here](SEE%20https://mjskay.github.io/tidybayes/articles/tidy-brms.html#introduction) for info. The {tidybayes} package follows the tidyverse format.
+
+```{r}
+insight::get_parameters(b4.3) |> head() # comparable to posterior_samples, except it doesn't give you samples for lp__
+
+tidybayes::tidy_draws(b4.3) |> head() # USE THIS ONE. {tidybayes} is useful for extracting draws in a form and manner consistent w/ the tidyverse.
+```
+
+### ...draws from the PRIOR Predictive Distribution
+
+-   When performing prior predictive checks (below), the following command can be used to extract values from the prior to show what the model expects, *before* seeing the observed data.
+
+```{r}
+brms::prior_draws()
+```
+
+### ...fitted (i.e., predicted) values from the POSTERIOR Predictive Distribution
+
+-   This is a method that uses the posterior to generate data that would be expected by the model. The results of these commands return *the data your model would expect to see,* given the parameters implied in the posterior.
+
+> With `fitted()`, we compute the expected values for each state.
+
+```{r}
+fitted(b5.4) |> as_tibble() |> head()
+```
+
+Kurz extracts the fitted values (values expected by the model) and then binds this back in with the full data
+
+```{r}
+fitted(b5.4) |> data.frame() |> bind_cols(d) |> head()
+```
+
+### ...residuals
+
+Same as above, but switch `fitted()` for `residuals()`
+
+```{r}
+
+residuals(b5.4b) |> 
+  data.frame() |> 
+  bind_cols(d)
+```
+
+## MCMC/HMC Diagnostics
+
+### Qualitative diagnostics
+
+{bayesplot} is good for diagnostic plots: <https://mc-stan.org/bayesplot/>
+
+```{r}
+
+```
+
+### Quantitative diagnostics (ESS and Rhat)
+
+Estimated Sample Size (ESS) and Rhat are two MCMC diagnostic indicators for MCMC/HMC models invented and used by Vehtari, Gelman, and the like. Good indicators to check, and easy to do so with the easystats suite.
+
+```{r}
+ # extract info from model
+diag=bayestestR::diagnostic_posterior(b5.3)
+
+# check Rhat
+diag$Rhat |> effectsize::interpret_rhat()
+
+# check ESS
+diag$ESS |> effectsize::interpret_ess()
+```
+
+## ggplots for Bayes factors, ROPE's, posteriors, etc.
+
+<https://easystats.github.io/see/articles/bayestestR.html>
+
+-   The {see} and {bayestestR} packages making plotting Bayesian models very easy. General format for almost everything is the same...
+
+-   To plot just the thing, combine the desired {bayestestR} command with `plot`; for example:
+
+```{r}
+plot(bayestestR::rope(b5.3))
+```
+
+To customize the look and appearance of the plot, use the same format as above, and add ggplot themes or themes and colors from other packages:
+
+```{r}
+plot(bayestestR::hdi(b5.3)) + 
+  theme_classic()+
+  scale_fill_metro(palette = "ice")
+
+plot(bayestestR::pd(b5.3)) + 
+  theme_classic()+
+  scale_fill_metro(palette = "ice")
+```
+
+## Predictive Checks for brms models
+
+### PRIOR predictive checks
+
+When building the model, set `sample_prior=TRUE`
+
+```{r}
+b5.1 <- 
+  brm(data = d, 
+      family = gaussian,
+      d ~ 1 + a,
+      prior = c(prior(normal(0, 0.2), class = Intercept),
+                prior(normal(0, 0.5), class = b),
+                prior(exponential(1), class = sigma)),
+      iter = 2000, warmup = 1000, chains = 4, cores = 4,
+      seed = 5,
+      sample_prior = T,
+      file = "../fits/b05.01")
+```
+
+Then extract draws from the prior using the command noted above and plot
+
+```{r}
+some_draws=brms::prior_draws(b5.1)
+
+some_draws %>% 
+  slice_sample(n = 50) %>% 
+  rownames_to_column("draw") %>% 
+  expand(nesting(draw, Intercept, b),
+         a = c(-2, 2)) %>% 
+  mutate(d = Intercept + b * a) %>% 
+  
+  ggplot(aes(x = a, y = d)) +
+  geom_line(aes(group = draw),
+            color = "firebrick", alpha = .4) +
+  labs(x = "Median age marriage (std)",
+       y = "Divorce rate (std)") +
+  coord_cartesian(ylim = c(-2, 2)) +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+
+```
+
+### POSTERIOR Predictive Checks
+
+#### ...for linear models
+
+First extract the values predicted by the model with `fitted()`, as noted above; then combine this with the data and pipe to ggplot
+
+```{r}
+brms_fit <-brm(price ~ 1 + carat,
+               family = gaussian(link = "identity"),
+               data = diamonds,                
+               prior = c(
+                 prior(normal(3, 2), class = Intercept),
+                 prior(normal(0, 3), class= sigma), 
+                 prior(normal(0, 3), class = b)), 
+               iter = 28000, warmup = 27000, chains = 3, cores = 3, seed = 4)
+
+
+fitted(brms_fit) %>%
+  data.frame() %>%
+  bind_cols(diamonds) %>%
+  
+  ggplot(aes(x = price, y = Estimate)) + # change x-axis to DV name
+  geom_abline(linetype = 2, color = "grey50", size = .5) +
+  geom_point(size = 1.5, color = "firebrick4", alpha = 3/4) +
+  geom_linerange(aes(ymin = Q2.5, ymax = Q97.5),
+                 size = 1/4, color = "firebrick4") +
+  #geom_text(data = . %>% filter(Loc %in% c("ID", "UT", "RI", "ME")),
+   #         aes(label = Loc), 
+    #        hjust = 1, nudge_x = - 0.25) +
+  labs(x = "Observed", y = "Predicted") +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+```
+
+This shows a regression line. To plot and compare the predicted posterior densities, use either of the following:
+
+```{r}
+performance::posterior_predictive_check(brms_fit)
+pp_check(brms_fit)
+```
+
+Note that these two commands are basically identical. This is because the former merely acts as a easy-to-remember shortcut that passes your model to the latter.
+
+There is a third command called `ppc_dens_overlay` but I'm not clear on what that does and when to use it.
+
+#### ...for logistic models
