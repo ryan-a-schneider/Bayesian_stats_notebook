@@ -10,6 +10,8 @@ reference_model=lm(moptim~sex + child + mnegaff, data=survey)
 
 ## Simple Linear Regression
 
+### Understanding the model
+
 In classic linear regression, the mean (or "center") of a normally distribution variable is assumed to be a linear function of the parameters $\alpha$ and $\beta$, like so:
 
 $$
@@ -20,11 +22,11 @@ Thus, in classic linear regression, each mean, $\mu_i$, is a function of $\alpha
 
 Linear regression is no longer just estimating parameters. Instead, it uses the relationship above to predict values of $\mu$, based on the other parameters in the model.
 
-### Priors in a Bayesian linear regression
+### Specifying Model Components
 
 The above model has three parameters that need priors: $\alpha$, $\beta$, and the accompanying $\sigma$ for the former, since this is a normally distributed model.
 
-#### *I. Prior on the location/average value* ($\alpha$)
+#### *Prior on the location/average value* ($\alpha$)
 
 This used to be $\mu$ when we were only doing estimation. Now it is the intercept.
 
@@ -34,7 +36,7 @@ This used to be $\mu$ when we were only doing estimation. Now it is the intercep
 
 -   *Setting in brms:* `Class = Intercept` is the prior for where the regression line crosses the y-intercept.
 
-#### *II. Prior for the variability of alpha for individuals (*$\sigma$)
+#### *Prior for sigma (*$\sigma$)
 
 -   While the sigma value in the intercept prior describes the variability of whole groups about the mean, this prior for $\sigma$ describes the variability of individuals about the mean. This value is necessary to include in the model because by definition, a normally distributed variable has a mean and some variation about the mean. Thus, the posterior is a joint distribution $Pr(\mu,\sigma)$ . Ultimately, however, since this is a "nuisance" parameter we don't care about, this parameter will be integrated out, and the final posterior we interpret will be a marginal posterior that describes uncertainty in $\mu$ accounting for all possible values of $\sigma$
 
@@ -42,13 +44,9 @@ This used to be $\mu$ when we were only doing estimation. Now it is the intercep
 
 -   *Setting in brms:* `Class = sigma` is for the sigma parameter, describing the spread of individual deviations from the mean.
 
-#### III. Prior on the $\beta$ parameter (the regression coefficients).
+#### Prior on the $\beta$ parameter (the regression coefficients).
 
 -   These are the slopes that answer the question, "*what is the change expected in the DV, when variable X changes by 1 unit?"* Priors for beta coefficients should always be centered on zero to allow the possibility of a zero-effect (relation) with the DV
-
--   *Example:*
-
--   *Setting in brms:* `Class = b` is for beta weights / (regression) coefficients.
 
 ## Basic R code for linear regression
 
@@ -175,7 +173,35 @@ list(rstan_fit,brms_fit, reference_model) |>
 
 ## Multiple Regression
 
-Considering an example from McElreath Ch. 5: Predicting divorce rates.
+### Strategy and idea for multiple regression
+
+1.  Nominate the **predictors** you want in the linear model of the mean
+2.  For each predictor, make a (slope) parameter that will measure its conditional association with the outcome
+3.  Multiply the (slope) parameter by the variable and add that term into the linear model
+
+### Understanding the model and its parts
+
+Considering an example from McElreath Ch. 5: Predicting divorce rates. We will be building a model that predicts divorce rate ($D$) from *Median age at time of marriage* (parameter $A$) and State Rate of Marriage, $M$.
+
+A linear model posits our data, $D_i$, is a linear function of parameters $\alpha$ (some constant) and $A$. Thus, our full model is:
+
+$$\mu_i=\alpha+\beta_AA_i$$
+
+The linear model is the function that tells us *how the value of the DV is related to the values of the IV's.* In this context it means...
+
+> The expected outcome for any state with marriage rate $M_i$ and a median age-at-marriage of $A_i$ is the sum of three independent terms.
+
+It's also important to understand what each part of the model itself represents:
+
+-   The *likelihood function* is the function that generated your data. It's the hypothetical "DGP", or "data-generating process."
+
+-   The *intercept* is the average expected value for the DV (i.e., your observed data) when all other variables are held at zero/before you enter any variables into the model.
+
+-   The *slopes/beta weights* represent the **rate** of change between variable X and observed data Y. As you increase on one, what happens to the other.
+
+Thus, another way to read the above is: "The means..."
+
+Now lets load the data.
 
 ```{r}
 data(WaffleDivorce, package = "rethinking")
@@ -190,31 +216,33 @@ d <-
 head(d)
 ```
 
-### Components of the model
+### Specifying Model Components
 
-***The data (i.e., the Dependent Variable)***
+#### Likelihood
 
--   Variable *Divorce Rate of State* is the primary DV, which we'll label as $D_i$. Variable $D_i$ is normally distributed around some mean:
+Our observed data (i.e., our Dependent Variable) is *Divorce Rate of State.* We'll call this $D_i$. We think that this variable came from a normal distribution, so our likelihood function will be:
 
-    -   $D_i {\sim}Normal(\mu, \sigma)$
+$$
+D_i {\sim}Normal(\mu, \sigma)
+$$
 
-    -   This formula represents the likelihood function that generates our data
-
-***The predictor(s)***
-
--   Our first IV is *Median age at time of marriage,* which we will mark as parameter $A$
-
-***The full linear model***
-
-Our linear model thus predicts our data, $D_i$, is a linear function of parameters $\alpha$ (some constant) and $A$, like so: $\mu_i=\alpha+\beta_AA_i$
-
-### Setting Priors
+#### Prior for the intercept
 
 > Since the outcome and the predictor are both standardized, the intercept $\alpha$ should end up very close to zero.
 
--   So our prior for the intercept is $\alpha {\sim}Normal(0,0.2)$. This is pretty strict. But it makes sense.
+So our prior for the intercept is going to be...
 
-And likewise, if the standard deviation on our slope parameter for our predictor, $\beta_A$, is 0.5, that means that a change in 1 SD change in marriage is associated with a 1 SD change in divorce. How strong is this? Does this make sense? Check the data to see how big 1 SD is for $A$
+$$
+\alpha {\sim}Normal(0,0.2)
+$$
+
+This is pretty strict. But it makes sense.
+
+#### Prior for slopes
+
+***Median Age at Marriage*** ($A$)
+
+Since this variable is also standardized, if the standard deviation on our slope parameter for our predictor, $\beta_A$, is 0.5, that means that a change in 1 SD change in marriage is associated with a 1 SD change in divorce. How strong is this? Does this make sense? Check the data to see how big 1 SD is for $A$
 
 ```{r}
 sd(d$MedianAgeMarriage)
@@ -228,15 +256,24 @@ Turns out it's 1.2. So...
 >
 > That seems like an insanely strong relationship. The prior above thinks that only 5% of plausable slopes are more extreme than 1.
 
-...but we're going to stick with it for the moment and model it like this anyway to see what it looks like.
+...but we're going to stick with it for the moment and model it like this anyway to see what it looks like. Final prior for parameter $A$'s slope is...
 
--   Prior for slope is $\beta_A {\sim} Normal(0,0.5)$.
+$$\beta_A {\sim} Normal(0,0.5)$$
+
+***Rate of Marriage*** ($M$)
+
+info here
+
+#### Prior for sigma
 
 -   Finally, prior for $\sigma$ is $\sigma {\sim}Exponential(1)$.
+
+### Make the model go
 
 Time to make the model go brrrr
 
 ```{r}
+
 b5.1 <- 
   brm(data = d, 
       family = gaussian,
@@ -247,5 +284,5 @@ b5.1 <-
       iter = 2000, warmup = 1000, chains = 4, cores = 4,
       seed = 5,
       sample_prior = T,
-      file = "../fits/b05.01")
+      file = here::here("fits", "b05.01"))
 ```

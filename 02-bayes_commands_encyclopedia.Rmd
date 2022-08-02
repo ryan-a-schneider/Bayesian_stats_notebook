@@ -247,18 +247,18 @@ brms_fit <-brm(price ~ 1 + carat,
                iter = 28000, warmup = 27000, chains = 3, cores = 3, seed = 4)
 
 
-fitted(brms_fit) %>%
-  data.frame() %>%
-  bind_cols(diamonds) %>%
+fitted(brms_fit) %>% # extract fitted predictions
+  data.frame() %>% # convert from matrix to df
+  bind_cols(diamonds) %>% # combine this with the original data
+  #...and pass to ggplot
   
-  ggplot(aes(x = price, y = Estimate)) + # change x-axis to DV name
+  ggplot(aes(x = price, y = Estimate)) + # change x-axis to DV name!
   geom_abline(linetype = 2, color = "grey50", size = .5) +
   geom_point(size = 1.5, color = "firebrick4", alpha = 3/4) +
   geom_linerange(aes(ymin = Q2.5, ymax = Q97.5),
                  size = 1/4, color = "firebrick4") +
   #geom_text(data = . %>% filter(Loc %in% c("ID", "UT", "RI", "ME")),
-   #         aes(label = Loc), 
-    #        hjust = 1, nudge_x = - 0.25) +
+  #         aes(label = Loc), hjust = 1, nudge_x = - 0.25) +
   labs(x = "Observed", y = "Predicted") +
   theme_bw() +
   theme(panel.grid = element_blank())
