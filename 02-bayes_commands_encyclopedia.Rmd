@@ -163,7 +163,9 @@ diag$Rhat |> effectsize::interpret_rhat()
 diag$ESS |> effectsize::interpret_ess()
 ```
 
-## ggplots for Bayes factors, ROPE's, posteriors, etc.
+## Plots and Figures 
+
+### Bayes factors, ROPE's, posteriors, etc.
 
 <https://easystats.github.io/see/articles/bayestestR.html>
 
@@ -185,6 +187,35 @@ plot(bayestestR::hdi(b5.3)) +
 plot(bayestestR::pd(b5.3)) + 
   theme_classic()+
   scale_fill_metro(palette = "ice")
+```
+
+### Coefficient estimates
+
+See this page for help: <https://cran.r-project.org/web/packages/bayesplot/vignettes/plotting-mcmc-draws.html>
+
+```{r}
+# Simple quick-and-dirty option
+mcmc_plot(b5.9, pars = "^b_")
+
+
+# fancy version
+
+library(bayesplot)
+
+color_scheme_set("red")
+
+post <- tidybayes::tidy_draws(b5.9)
+
+post %>% 
+  select(starts_with("b_")) %>% 
+  
+  bayesplot::mcmc_intervals(prob = .5, point_est = "median") + # the key plotting feature here
+  
+  labs(title = "My fancy coefficient plot") +
+  theme_bw() +
+  theme(axis.text.y = element_text(hjust = 0),
+        axis.ticks.y = element_blank(),
+        panel.grid = element_blank())
 ```
 
 ## Predictive Checks for brms models
