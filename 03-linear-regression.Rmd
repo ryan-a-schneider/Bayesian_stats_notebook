@@ -8,23 +8,27 @@ survey=legaldmlab::survey |> janitor::clean_names()
 reference_model=lm(moptim~sex + child + mnegaff, data=survey)
 ```
 
-## Simple Linear Regression
+## The Linear Model
 
-### Understanding the model
+Linear regression is not simply estimating parameters by pulling them from a known posterior distribution. Instead, it uses a relationship between the parameters, specified below, to predict values of $\mu$.
 
-In classic linear regression, the mean (or "center") of a normally distribution variable is assumed to be a linear function of the parameters $\alpha$ and $\beta$, like so:
+In classic linear regression, the mean of a normally distributed variable is assumed to be a linear function of the parameters $\alpha$ and $\beta$; i.e., each mean, $\mu_i$, is a function of $\alpha$ (the intercept, a constant) and $\beta$ (the slope; i.e., the rate at which the observed-variable X changes the mean).
+
+The formula for the linear model is thus:
 
 $$
 \mu_i=\alpha + \beta*X
 $$
 
-Thus, in classic linear regression, each mean, $\mu_i$, is a function of $\alpha$ (the intercept, a constant) and $\beta$ (the slope; i.e., the rate at which the observed-variable X changes the mean).
+## Specifying Model Components
 
-Linear regression is no longer just estimating parameters. Instead, it uses the relationship above to predict values of $\mu$, based on the other parameters in the model.
+When building a linear model, you have to specify each component in the above formula. There are three parameters that need priors:
 
-### Specifying Model Components
+-   $\alpha$, which is th intercept
 
-The above model has three parameters that need priors: $\alpha$, $\beta$, and the accompanying $\sigma$ for the former, since this is a normally distributed model.
+-   $\beta$, which is the slope that describes the rate of change for the included variable/effect
+
+-   and $\sigma$, which is necessary to include to describe the variation around the individual means being predicted.
 
 #### *Prior on the location/average value* ($\alpha$)
 
@@ -48,9 +52,7 @@ This used to be $\mu$ when we were only doing estimation. Now it is the intercep
 
 -   These are the slopes that answer the question, "*what is the change expected in the DV, when variable X changes by 1 unit?"* Priors for beta coefficients should always be centered on zero to allow the possibility of a zero-effect (relation) with the DV
 
-## Basic R code for linear regression
-
-### brms
+## brms code
 
 ```{r}
 brms_fit <-brm(moptim ~ 1,
@@ -65,28 +67,7 @@ brms_fit <-brm(moptim ~ 1,
 
 -   Setting `class=b` and *not* specifying the coefficient sets the same prior for *all* regression coefficients
 
-### rstanarm
-
-```{r}
-rstan_fit=stan_glm(moptim ~ 1 + sex + child + mnegaff, 
-                    family= gaussian(link = "identity"), data= survey, 
-                    prior = student_t(3,location=c(0,0,0), scale=c(3,3,3), autoscale = FALSE),
-                    #prior_intercept = normal(), 
-                    algorithm = c("sampling"), 
-                    mean_PPD = TRUE,
-                    adapt_delta = 0.95, 
-                    chains=3, iter=4000, cores=3)
-```
-
--   `adapt_delta` is
-
--   `mean_PPD` is
-
--   `algorithm=c("sampling")` is
-
--   
-
-In this example model...
+### In this example model...
 
 -   ***Intercept:*** Individuals are expected to be at an average of 3 (out of a possible 5) on their level of optimism; and 95% of individuals will be within 2 SD's of 3
 
@@ -183,13 +164,13 @@ list(rstan_fit,brms_fit, reference_model) |>
 
 Considering an example from McElreath Ch. 5: Predicting divorce rates. We will be building a model that predicts divorce rate ($D$) from *Median age at time of marriage* (parameter $A$) and State Rate of Marriage, $M$.
 
-A linear model posits our data, $D_i$, is a linear function of parameters $\alpha$ (some constant) and $A$. Thus, our full model is:
+A linear model posits our data, $D_i$, is a linear function of parameters $\alpha$ (some constant) and $A$. Thus, our full linear model is:
 
 $$\mu_i=\alpha+\beta_AA_i$$
 
 The linear model is the function that tells us *how the value of the DV is related to the values of the IV's.* In this context it means...
 
-> The expected outcome for any state with marriage rate $M_i$ and a median age-at-marriage of $A_i$ is the sum of three independent terms.
+> The expected outcome for any state with marriage rate $M_i$ and a median age-at-marriage of $A_i$ is the sum of three independent terms (the intercept, the slope, and the individual values of the variable itself).
 
 It's also important to understand what each part of the model itself represents:
 
@@ -266,7 +247,7 @@ info here
 
 #### Prior for sigma
 
--   Finally, prior for $\sigma$ is $\sigma {\sim}Exponential(1)$.
+-   Finally, prior for $\sigma$ is $\sigma {\sim}Exponential(1)$, which restricts it to positive values (since you can't have a negative variance/SD).
 
 ### Make the model go
 

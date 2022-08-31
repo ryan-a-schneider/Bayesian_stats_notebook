@@ -2,7 +2,7 @@
 legaldmlab::primeR(analysis_type = "Bayes")
 ```
 
-## Logistic Regression
+## Crash Course on Logistic Regression
 
 The formula for logistic regression is:
 
@@ -12,7 +12,7 @@ $$
 
 When $X_1$ goes up by one unit (on whatever scale it's on), then the $logit(\mu)$ increases by amount $\beta_1$ ; When $X_2$ increases by 1 unit, $logit(\mu)$ increases by $\beta_2$.
 
-## brms
+## brms code
 
 SEE HERE: <https://bookdown.org/ajkurz/DBDA_recoded/dichotomous-predicted-variable.html>
 
@@ -55,11 +55,7 @@ my_data <-
          weight_z = (weight - mean(weight)) / sd(weight))
 ```
 
-## Further details
-
--   `iter` sets the number of iterations ("steps") per chain...
-
-## Example models from Kruschke's DBDA
+## Example from Kruschke's DBDA
 
 ```{r}
 
@@ -99,9 +95,9 @@ ref_model_2=glm(male ~ 1 + weight_z + height_z, data = my_data, family = "binomi
 
 ```
 
--   *Still need to know more about* `iter`, `warmup`, `chains`, and `seed`.
+## Interpreting the parameters in logistic models
 
--   Also, can you do a student-t prior in brms?
+See here: <https://bookdown.org/ajkurz/DBDA_recoded/dichotomous-predicted-variable.html#interpreting-the-regression-coefficients>
 
 ## Test models from my thesis
 
@@ -133,28 +129,3 @@ list(Frequentest_Model=thesis_model_reference,
   map(parameters)
 
 ```
-
-## Interpreting the parameters in logistic models
-
-See here: <https://bookdown.org/ajkurz/DBDA_recoded/dichotomous-predicted-variable.html#interpreting-the-regression-coefficients>
-
-## rstanarm
-
-```{r}
- pts2_Bayes_ogm=stan_glm(accept ~ grp_all, 
-                    family= binomial(link = "logit"), 
-                    data= data_by_condition$pts_2, 
-                    prior = priors,
-                    #prior_intercept = normal(), 
-                    algorithm = c("sampling"), 
-                    mean_PPD = TRUE,
-                    adapt_delta = 0.95, 
-                    #QR = FALSE, 
-                    #sparse = FALSE,
-                    chains=4,iter=60000,cores=4, # 5-6k steps fine if not using Bayes factors; 50-60k if using them.
-                    diagnostic_file=file.path(tempdir(), "df2.csv")) # can delete this if not using Bayes factors
-```
-
-## Details
-
--   `mean_PPD` is for sampling from the Prior Predictive Distribution...

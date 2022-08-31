@@ -53,7 +53,7 @@ logistic_fit <-
       seed = 21)
 ```
 
-### Fitting additional models
+## Fitting additional models
 
 If you want to fit multiple models to test and see which is best, rather than make a huge code block with copy-pasted code of a slew of models, better to make use of the `update()` function, which updates an original model by refitting it with the specified changes.
 
@@ -63,7 +63,27 @@ The example below refits and creates a second version of the logistic model abov
 logistic_fit2=update(fit2, formula. =  ~ . - height_z)
 ```
 
-## Summarizing effects
+## BRMS SETTINGS
+
+Notice the following line near the end of the model: `iter = 2500, warmup = 500, chains = 4, cores = 4, seed = 21`. This section describes what to do with these settings.
+
+### iter
+
+`iter` is the number of steps taken in each chain.
+
+### chains
+
+s
+
+### warmup
+
+x
+
+### seed
+
+x
+
+## SUMMARIZING EFFECTS
 
 These two give summaries of ALL effects, including the sigma parameter and the Log Posterior Density (lp\_\_)
 
@@ -89,7 +109,7 @@ The two below are probably what you'll want to use. They give you info on *only 
 describe_posterior(b5.3) |> format_table()
 ```
 
-## Extracting \_\_\_ from the \_\_\_
+## EXTRACTING \_\_\_ FROM THE\_\_\_
 
 ### ...draws from the posterior
 
@@ -138,7 +158,7 @@ residuals(b5.4b) |>
   bind_cols(d)
 ```
 
-## MCMC/HMC Diagnostics
+## MCMC/HMC DIAGNOSTICS
 
 ### Qualitative diagnostics
 
@@ -163,7 +183,7 @@ diag$Rhat |> effectsize::interpret_rhat()
 diag$ESS |> effectsize::interpret_ess()
 ```
 
-## Plots and Figures 
+## BAYESIAN PLOTS AND FIGURES
 
 ### Bayes factors, ROPE's, posteriors, etc.
 
@@ -218,9 +238,11 @@ post %>%
         panel.grid = element_blank())
 ```
 
-## Predictive Checks for brms models
+## PREDICTIVE CHECKS FOR BRMS MODELS
 
-### PRIOR predictive checks
+Both prior and posterior predictive checks below.
+
+### (PRIOR) predictive checks
 
 When building the model, set `sample_prior=TRUE`
 
@@ -261,7 +283,7 @@ some_draws %>%
 
 ```
 
-### POSTERIOR Predictive Checks
+### (POSTERIOR) Predictive Checks
 
 #### ...for linear models
 
