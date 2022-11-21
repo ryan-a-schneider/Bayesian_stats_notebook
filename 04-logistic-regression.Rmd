@@ -7,12 +7,77 @@ legaldmlab::primeR(analysis_type = "Bayes")
 The formula for logistic regression is:
 
 $$
-logit(\mu)=\beta_0 + \beta_1x_1 + \beta_2x_2
+logit(\mu)=\beta_0 + \beta_1X_1 + \beta_2X_2
 $$
 
 When $X_1$ goes up by one unit (on whatever scale it's on), then the $logit(\mu)$ increases by amount $\beta_1$ ; When $X_2$ increases by 1 unit, $logit(\mu)$ increases by $\beta_2$.
 
-## brms code
+See [this link](https://yury-zablotski.netlify.app/post/how-logistic-regression-works/) and [this link](https://stats.oarc.ucla.edu/r/dae/logit-regression/) for help.
+
+### Terminology and key concepts
+
+Logistic regression uses a linking function to turn a dichotomous variable into a linear one.
+
+-   **Odds** are the proportion of an event occuring to the proportion of it not-happening. If 100 people were in one of our study conditions and 60 of them pled guilty, then the odds of pleading guilty are 60:40, or $\frac{6}{4}$ . When divided out, the odds of pleading guilty are 1.5x
+
+-   **Log-odds** are the logarithm of the odds, which transforms their scale to make it linear and symmetrical around 0. Negative log-odds indicate a lower chance of success, while positive log-odds indicate a higher chance of success. **This is the default output for a coefficient in logistic regression.**
+
+-   An **Odds Ratio** is a ratio of two odds. This tells you the change in odds moving from one group to another, or the change in odds as the IV increases one point. ***These are not symmetrical around 0*** like log-odds are. You can get an Odds Ratio by exponentiating the log odds.
+
+-   **Probability** is the ratio of an event happening, compared to all possible outcomes.
+
+### Example model
+
+```{r}
+# make a model
+m <- glm(formula = am ~ mpg, data = mtcars, family = binomial())
+
+# grab results
+parameters(m) |> mutate(Odds_Ratio=exp(2)) |> relocate(Odds_Ratio, .before = 2)
+```
+
+-   The coefficient of 0.31 for mpg is interpreted as the **expected change in log odds for a one-unit increase in the IV.**
+
+-   If you turn this into an odds ratio, you get 7.39. *For every 1-point increase in the predictor (MPG), the odds of a car being a manual transmission increase by a factor of 7.39 times*
+
+-   (if this was a categorical variable, it would say that the odds are x% higher for group A vs. group B)
+
+### Translating Odds Ratios into (predicted) probability
+
+You can also compute predicted probabilities to understand the model in a different way. This can be done for both continuous and categorical predictors. Probability can be extracted from log-odds.
+
+```{r}
+
+# add predictions to the original data
+mtcars <- mtcars |> 
+  mutate(log_odds = predict(m), # only necessary to create the ggplot below
+         preds_prob = predict(m, type = "response"))
+
+# visualize log-odds and probabilities to see their connection
+ggplot(mtcars)+
+  geom_point(aes(mpg, am), color = "orange")+
+  geom_point(aes(mpg, preds_prob))+
+  geom_line(aes(mpg, preds_prob))+
+  geom_point(aes(mpg, log_odds), color = "blue")+
+  geom_line(aes(mpg, log_odds), color = "blue")+
+  geom_vline(xintercept = 21.5, linetype = "dotted")+
+  geom_hline(yintercept = 0.5, linetype = "dotted")+
+  theme_minimal()
+```
+
+-   The blue line shows the log-odds of each car being a manual transmission, based on its MPG.
+
+-   The black S curve shows the probabilities of each car being a manual, based on its MPG
+
+Taking one car from this as an example...
+
+```{r}
+mtcars |> slice(19) |> select(mpg, log_odds, am, preds_prob)
+```
+
+A car with an MPG rating of 30 has a 93% probability of being a manual transmission
+
+## Creating a Bayesian model with brms
 
 SEE HERE: <https://bookdown.org/ajkurz/DBDA_recoded/dichotomous-predicted-variable.html>
 
@@ -38,7 +103,13 @@ fit <-
                 prior(normal(0, 2), class = b)))
 ```
 
-***The results of these two should be the same as long as the data are not aggregated--but the binomial version requires the DV to be of integer or double structure, not as a factor***. This makes sense, because non-aggregated data would be categorical: In a single trial, the outcome is either A or B, true or false, etc. Aggregated data would be a sum/tally of A's, trues, successes, etc.
+***The results of these two should be the same as long as the data are not aggregated--but the binomial version requires the DV to be of integer or double structure, not as a factor***. This makes sense, because non-aggregated data would be categorical: In essence, in a single Bernouli trial, the outcome is either A or B, true or false, etc. Aggregated data, on the other hand, would be a sum/tally of outcome-A, number-of-trues or successes, etc.
+
+So in short:
+
+-   if you're using non-aggregated data, you can use either formula above. If you ARE using aggregated data, you *must* use the second version.
+
+-   Probably easiest therefore to always use the latter, and remember two switch the number of trials in line three based on whether or not the data is aggregated or whether each data point is a single Bernoulli event.
 
 In **brms**, the default link for both `family = bernoulli` and `family = binomial` models is `logit`.
 
@@ -46,7 +117,7 @@ Also, note the additional `| trials(1)` syntax on the left side of the model for
 
 Lastly, note that *not specifying the coefficient in the* `class = b` line will apply that prior to all effects.
 
-*HOW TO STANDARDIZE*
+*HOW TO STANDARDIZE a variable*
 
 ```{r}
 my_data <-
@@ -94,10 +165,6 @@ ref_model_2=glm(male ~ 1 + weight_z + height_z, data = my_data, family = "binomi
 
 
 ```
-
-## Interpreting the parameters in logistic models
-
-See here: <https://bookdown.org/ajkurz/DBDA_recoded/dichotomous-predicted-variable.html#interpreting-the-regression-coefficients>
 
 ## Test models from my thesis
 

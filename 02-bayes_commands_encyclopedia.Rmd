@@ -53,31 +53,42 @@ logistic_fit <-
       seed = 21)
 ```
 
-## Fitting additional models
+## Updating or fitting additional models
 
-If you want to fit multiple models to test and see which is best, rather than make a huge code block with copy-pasted code of a slew of models, better to make use of the `update()` function, which updates an original model by refitting it with the specified changes.
+Do you want to fit more than one model on the same data? Of course you do. If the models aren't radically different, it might be easier to use the `update` function that fitting each model anew with another `brm()` call. Using `update()` lets brms reuse the stan code it compiled for the first model, so it takes less time to build subsequent models.
 
-The example below refits and creates a second version of the logistic model above by removing one of the predictors.
+Also it saves lines of code and reduces chances of copy/paste-born errors.
 
 ```{r}
-logistic_fit2=update(fit2, formula. =  ~ . - height_z)
+# fit initial model
+brms_index <-brm(formula = plea_sentence_months ~ 0 + poc,
+                   family = gaussian(link = "identity"),
+                   data = practice_data,
+                   prior = c(prior(normal(0, 3), class = sigma), 
+                             prior(normal(0, 3), class = b, coef=poc0.)),
+                   iter = 20000, warmup = 8000, chains = 4, cores = 4, seed = 4)
+
+# create a new model by updating the initial one, by adding the intercept parameter back in
+brms_dummy_single <-update(brms_index, newdata = practice_data,
+                           formula. = ~ .+1,
+                           prior = c(prior(normal(3, 2), class = Intercept)))
+
+# update again to create a third model with more predictors
+brms_dummy_multi <-update(brms_dummy_single, newdata = practice_data,
+                          formula. = ~ .-poc + poc_5 + poc_8)
 ```
 
 ## BRMS SETTINGS
 
-Notice the following line near the end of the model: `iter = 2500, warmup = 500, chains = 4, cores = 4, seed = 21`. This section describes what to do with these settings.
+Common stuff you should know.
 
-### iter
+### iter, chains, and warmup
 
-`iter` is the number of steps taken in each chain.
+-   `iter` is the number of steps taken in each chain.
 
-### chains
+-   `warmup` is how many of the steps specified in `iter` will be used for a "warm-up" run and discarded.
 
-s
-
-### warmup
-
-x
+-   You don't need more than 3-4 chains for most models.
 
 ### seed
 
@@ -85,7 +96,7 @@ x
 
 ## SUMMARIZING EFFECTS
 
-These two give summaries of ALL effects, including the sigma parameter and the Log Posterior Density (lp\_\_)
+These two upper commands give summaries of ALL effects, including the sigma parameter and the Log Posterior Density (lp\_\_). The two lower ones are probably what you'll want to use. They give you info on *only the main effects*. No sigma, and no lp\_\_.
 
 ```{r}
 brms::posterior_summary(b5.3)
@@ -98,8 +109,6 @@ brms::fixef(b5.3)
 
 bayestestR::describe_posterior(b5.3) # most detailed info on the posterior main effects
 ```
-
-The two below are probably what you'll want to use. They give you info on *only the main effects*. No sigma, and no lp\_\_.
 
 -   Do note though that the table that is printed in the console/in RMarkdown when you use `describe_posterior` is cleaned up and formatted...if you save this table in the environment, it will be a regular data frame with un-rounded columns, etc.
 

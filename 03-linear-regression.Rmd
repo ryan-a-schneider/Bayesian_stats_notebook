@@ -10,35 +10,84 @@ reference_model=lm(moptim~sex + child + mnegaff, data=survey)
 
 ## The Linear Model
 
-Linear regression is not simply estimating parameters by pulling them from a known posterior distribution. Instead, it uses a relationship between the parameters, specified below, to predict values of $\mu$.
+```{r}
+library(rethinking)
+data(Howell1)
+d <- Howell1
 
-In classic linear regression, the mean of a normally distributed variable is assumed to be a linear function of the parameters $\alpha$ and $\beta$; i.e., each mean, $\mu_i$, is a function of $\alpha$ (the intercept, a constant) and $\beta$ (the slope; i.e., the rate at which the observed-variable X changes the mean).
+rm(Howell1)
+detach(package:rethinking, unload = T)
 
-The formula for the linear model is thus:
+tibble::as_tibble(d)
+```
+
+We're moving away from simple estimation now. Bayesian estimation is when you just use the likelihood and the prior to arrive at a posterior that ranks the plausability of the parameter values for the data. We want more than that now....
+
+What we want is to know the *relationship between the outcome and the predictors.* This requires making a new mathematical formula that maps out the relationship between our outcome and the things we think will predict it.
+
+> The strategy is to make the parameter for the mean of the Guassian Distribution, $\mu$, into a linear function of the predictor variable and other, new parameters that we invent. This is often simply called the linear model.
+>
+> The linear model strategy instructs the golem to assume that **the predictor variable has a** **constant and additive relationship** to the mean of the outcome. (emphasis added)
+
+Thus, the linear model says the relationship between the predictors and the means is: $\mu_i=\alpha+\beta(x_i-xbar)$, where xbar is the average of the observed heights.
+
+> The golem then computes the posterior distribution of this constant relationship.
+>
+> The mean $\mu$ is no longer a parameter to be estimated. Rather...$\mu_i$ is constructed from other parameters, $\alpha$ and $\beta$, and the observed variable x. This is not a stochastic relationship [i.e., one that is randomly distributed]...
+
+That there's an = sign instead of a tilde tells us that the values of $\mu_i$ are *deterministic*; that they are determined $\alpha$, $\beta$, and $x_i$; once you know those, you know exactly what $\mu_i$ is.
+
+So all together, we have...
+
+-   The likelihood function that describes our data and how it was generated: $h_i {\sim} Normal (\mu, \sigma)$
+
+-   The prior for the location, alpha (used to be $\mu$ when we were only doing estimation): $\alpha {\sim} Normal (178,20)$
+
+    -   The prior for the variability, sigma, that goes with the location parameter alpha: $\sigma {\sim} Uniform(0,50)$
+
+-   The Beta parameter's prior, $\beta{\sim}Normal (0,10)$
+
+And our linear function that shows how each of these things is related to calculate predicted outcomes: $\mu_i=\alpha+\beta(x_i-xbar)$
+
+The parameters stand for the strength of relationship between $\mu$ and some other variable. The posterior ranks each of the infinite possible combinations of parameter values by their logical plausibility, given the observed data.
+
+Imagine an example where we have weights of 50 people and we want to predict their height from these weights. The height data, $h$, we assume is normally distributed like so: $h_i{\sim}N(\mu_i,\sigma)$.
+
+This formula represents the likelihood function. It says that *each individual height* comes from **a distribution with some mean** and some variance. Importantly, note that $\mu_i$ is the mean for a given $h_i$; it is the mean for the distribution from which an individual data point came from.
+
+What linear regression does is plot the means of variables that are (assumed to be) normally distributed. The following linear function is used to map out the relationship of parameters $\alpha$ and $\beta$:
 
 $$
-\mu_i=\alpha + \beta*X
+\mu_i=\alpha + \beta(X_i-\overline{X})
 $$
+
+Within this formula:
+
+-   $\alpha$ is the starting point for the equation; it provides a point from which the equation can begin to make predictions. It is the expected average value for the DV when all IV's are held at zero. In other words, the mean of the DV, across the whole sample, before you enter any variables into your model. It's the point at which you start with no other info.
+
+-   $\beta$ is the correlation between the starting point and the individual data points gathered in the sample
+
+Each mean, $\mu_i$, is a function of $\alpha$ (the intercept, a constant) and $\beta$ (the slope; i.e., the rate at which the observed-variable X changes the mean). But remember...each individual $\mu_i$ that this function generates is the center of *the specific distribution that* $X_i$ *is thought to come from.*
+
+In sum: The intercept gives you a starting point, and the correlation gives you the direction and strength of the relationship between the starting point and each data point $X_i$ in the sample. Combined, you can use these two pieces of info to map out the likely **average** value
 
 ## Specifying Model Components
 
-When building a linear model, you have to specify each component in the above formula. There are three parameters that need priors:
+When building a linear model, you have to specify each component in the above formula. There are three parameters that need priors: $\alpha$, $\beta$, and $\sigma$.
 
--   $\alpha$, which is th intercept
+#### Alpha's prior
 
--   $\beta$, which is the slope that describes the rate of change for the included variable/effect
-
--   and $\sigma$, which is necessary to include to describe the variation around the individual means being predicted.
-
-#### *Prior on the location/average value* ($\alpha$)
-
-This used to be $\mu$ when we were only doing estimation. Now it is the intercept.
-
--   *Interpretation:* It is the expected value for the DV when all IV's are held at zero. *Set this prior equal to what your expectations would be for the average/expected value of your DV, before you entered any IV's into the model*. Where is your DV, on average, by itself?
+$\alpha$ represents the expected starting point for your DV with no other information in the model. Where do you believe your model starts? Therefore, this prior should be set to your expected value for the DV, on average, taking no information into account. (In this way, it can be thought of kind of like the location setting).
 
 -   *Example*: In a model of height where the average height of individuals is expected to be 178cm, and whole sample means should be within 40cm ($\pm2$ SD's; 1 SD= 20cm) of this mean of means, the prior would be: $$\alpha {\sim} Normal(178, 20)$$
 
 -   *Setting in brms:* `Class = Intercept` is the prior for where the regression line crosses the y-intercept.
+
+#### Beta
+
+$\beta$ is the slope that describes the rate of change for the included variable/effect; i.e., the correlations/regression coefficients. These are the slopes that answer the question, "*what is the change expected in the DV, when variable X changes by 1 unit?"*
+
+Priors for beta coefficients should always be centered on zero to allow the possibility of a zero-effect (relation) with the DV
 
 #### *Prior for sigma (*$\sigma$)
 
@@ -47,10 +96,6 @@ This used to be $\mu$ when we were only doing estimation. Now it is the intercep
 -   Example: In the same model of height above, *individuals* are expected to be within 100cm of the center/average value (1 SD= 50cm). The prior would be:$$\sigma {\sim} uniform(0,50)$$
 
 -   *Setting in brms:* `Class = sigma` is for the sigma parameter, describing the spread of individual deviations from the mean.
-
-#### Prior on the $\beta$ parameter (the regression coefficients).
-
--   These are the slopes that answer the question, "*what is the change expected in the DV, when variable X changes by 1 unit?"* Priors for beta coefficients should always be centered on zero to allow the possibility of a zero-effect (relation) with the DV
 
 ## brms code
 
@@ -235,7 +280,7 @@ Turns out it's 1.2. So...
 >
 > [Going up or down just barely over a year in age of marriage will swing the value of the DV a full standard deviation as well]
 >
-> That seems like an insanely strong relationship. The prior above thinks that only 5% of plausable slopes are more extreme than 1.
+> That seems like an insanely strong relationship. The prior above thinks that only 5% of plausible slopes are more extreme than 1.
 
 ...but we're going to stick with it for the moment and model it like this anyway to see what it looks like. Final prior for parameter $A$'s slope is...
 
@@ -251,7 +296,7 @@ info here
 
 ### Make the model go
 
-Time to make the model go brrrr
+Regression model go brrrrrr
 
 ```{r}
 
