@@ -84,7 +84,7 @@ Common stuff you should know.
 
 ### iter, chains, and warmup
 
--   `iter` is the number of steps taken in each chain. Kurz/McElreath in chapter 4 note: "you usually only need to set `iter= 2000, warmup=1000` when using moderately better priors [than these terrible uniform ones]"
+-   `iter` is the number of steps taken in each chain. Kurz in chapter 4 notes: "you usually only need to set `iter= 2000, warmup=1000` when using moderately better priors [than these terrible uniform ones]"
 
 -   `warmup` is how many of the steps specified in `iter` will be used for a "warm-up" run and discarded.
 
