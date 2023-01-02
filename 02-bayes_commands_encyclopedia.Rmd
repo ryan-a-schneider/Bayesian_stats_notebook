@@ -9,9 +9,7 @@ date: '2022-07-15'
 pacman::p_load(tidyverse, bayesplot, tidybayes, brms, easystats)
 ```
 
-## Some preliminary set up
-
-Lets build two simple models to run all the following code on
+Some preliminary set up...Lets build two simple models to run all the following code on
 
 ```{r}
 # ========================= LINEAR ===============================================
@@ -53,7 +51,73 @@ logistic_fit <-
       seed = 21)
 ```
 
-## Updating or fitting additional models
+## I. BRMS SETTINGS
+
+Common stuff you should know...
+
+### `iter`, `chains`, and `warmup`
+
+-   `iter` is the number of steps taken in each chain. Kurz in chapter 4 notes: "you usually only need to set `iter= 2000, warmup=1000` when using moderately better priors [than these terrible uniform ones]." You usually don't need more than a few thousand steps per chain, if you have a relatively simple model and you're only trying to get estimates of the parameters.
+
+-   `warmup` is how many of the steps specified in `iter` will be used for a "warm-up" run and discarded.
+
+-   You don't need more than 3-4 chains for most models.
+
+### `seed`
+
+x
+
+### Variable coding and the intercept
+
+-   *You do not have to do anything special to dummy-code a model, just leave it as is. If you do not include the* `1` *in the formula, it's there invisible by default*
+
+-   If you want to index code, you need to manually surpress the intercept by switching the `1` to `0`. If you have multiple variables, you need to use the last version that includes the command `nl=TRUE`
+
+-   In either case, store your factors as `as.factor` to make things simple (but I don't think this matters)
+
+```{r eval=FALSE}
+brms_dummy <-brm(formula = plea_sentence_months ~ 1 + poc,
+                   family = gaussian(link = "identity"),
+                   data = practice_data,
+                   prior = c(prior(normal(108, 24), class = Intercept),
+                             prior(lognormal(0, 5), class = sigma), 
+                             prior(normal(0, 10), class = b)), 
+                   iter = 3000, warmup = 750, chains = 4, cores = 4)
+
+
+brms_index <-brm(formula = plea_sentence_months ~ 0 + poc,
+                   family = gaussian(link = "identity"),
+                   data = practice_data,
+                   prior = c(prior(lognormal(0, 5), class = sigma), 
+                             prior(normal(50, 24), class = b, coef=poc0.2),
+                             prior(normal(108, 24), class = b, coef=poc0.5),
+                             prior(normal(173, 24), class = b, coef=poc0.8)),
+                   iter = 3000, warmup = 750, chains = 4, cores = 4)
+
+
+brms_index_2 <-brm(data = d,
+                   family = gaussian,
+                   bf(kcal.per.g_s ~ 0 + a + h, 
+                      a ~ 0 + clade, 
+                      h ~ 0 + house, 
+                      nl = TRUE), # this line is the fix
+                   prior = c(prior(normal(0, 0.5), nlpar = a),
+                             prior(normal(0, 0.5), nlpar = h),
+                             prior(exponential(1), class = sigma)),
+                   iter = 2000, warmup = 1000, chains = 4, cores = 4,
+                   seed = 5,
+                   file = here::here("fits", "b05.11"))
+```
+
+An Index variable is one variable that has one level for each category of the factor. A dummy (AKA "Indicator") variable is k-1 variables that are coded 0/1 to indicate the presence or absence of a level.
+
+The difference between two groups is another parameter that you have to estimate; *you cannot assume that the difference between two groups, as it is observed in your sample, is measured perfectly without any error.* The distance between the center of two distributions requires an estimate.
+
+Dummy and index models are doing very similar things, just from different angles. The dummy-coded model calculates an intercept (i.e., the average starting value) across the whole sample, and then compares the difference from each group to the intercept. In this case, the estimated beta-weights represent the changes/slopes/correlation coefficients.
+
+Index models instead calculate a separate intercept (i.e., the mean) for each level/group on its own. In this instance, the beta's represent the means of each group. This let's you compute the differences between two groups easier than the dummy-model.
+
+## II. Updating or fitting additional models
 
 Do you want to fit more than one model on the same data? Of course you do. If the models aren't radically different, it might be easier to use the `update` function that fitting each model anew with another `brm()` call. Using `update()` lets brms reuse the stan code it compiled for the first model, so it takes less time to build subsequent models.
 
@@ -78,23 +142,7 @@ brms_dummy_multi <-update(brms_dummy_single, newdata = practice_data,
                           formula. = ~ .-poc + poc_5 + poc_8)
 ```
 
-## BRMS SETTINGS
-
-Common stuff you should know.
-
-### iter, chains, and warmup
-
--   `iter` is the number of steps taken in each chain. Kurz in chapter 4 notes: "you usually only need to set `iter= 2000, warmup=1000` when using moderately better priors [than these terrible uniform ones]"
-
--   `warmup` is how many of the steps specified in `iter` will be used for a "warm-up" run and discarded.
-
--   You don't need more than 3-4 chains for most models.
-
-### seed
-
-x
-
-## SUMMARIZING EFFECTS
+## III. SUMMARIZING EFFECTS
 
 These two upper commands give summaries of ALL effects, including the sigma parameter and the Log Posterior Density (lp\_\_). The two lower ones are probably what you'll want to use. They give you info on *only the main effects*. No sigma, and no lp\_\_.
 
@@ -118,7 +166,7 @@ bayestestR::describe_posterior(b5.3) # most detailed info on the posterior main 
 describe_posterior(b5.3) |> format_table()
 ```
 
-## EXTRACTING \_\_\_ FROM THE\_\_\_
+## IV. EXTRACTING \_\_\_ FROM THE\_\_\_
 
 ### ...draws from the posterior
 
@@ -156,7 +204,7 @@ Kurz extracts the fitted values (values expected by the model) and then binds th
 fitted(b5.4) |> data.frame() |> bind_cols(d) |> head()
 ```
 
-### ...residuals
+### ...residuals from the model
 
 Same as above, but switch `fitted()` for `residuals()`
 
@@ -167,7 +215,7 @@ residuals(b5.4b) |>
   bind_cols(d)
 ```
 
-## MCMC/HMC DIAGNOSTICS
+## V. MONTE CARLO DIAGNOSTICS
 
 ### Qualitative diagnostics
 
@@ -181,6 +229,10 @@ residuals(b5.4b) |>
 
 Estimated Sample Size (ESS) and Rhat are two MCMC diagnostic indicators for MCMC/HMC models invented and used by Vehtari, Gelman, and the like. Good indicators to check, and easy to do so with the easystats suite.
 
+-   Rhat should be \>1000
+
+-   ESS should be...
+
 ```{r}
  # extract info from model
 diag=bayestestR::diagnostic_posterior(b5.3)
@@ -192,7 +244,7 @@ diag$Rhat |> effectsize::interpret_rhat()
 diag$ESS |> effectsize::interpret_ess()
 ```
 
-## BAYESIAN PLOTS AND FIGURES
+## VI. BAYESIAN PLOTS AND FIGURES
 
 ### Bayes factors, ROPE's, posteriors, etc.
 
@@ -247,11 +299,11 @@ post %>%
         panel.grid = element_blank())
 ```
 
-## PREDICTIVE CHECKS FOR BRMS MODELS
+## VII. PREDICTIVE CHECKS FOR BRMS MODELS
 
 Both prior and posterior predictive checks below.
 
-### (PRIOR) predictive checks
+### A. PRIOR predictive checks
 
 When building the model, set `sample_prior=TRUE`
 
@@ -292,7 +344,7 @@ some_draws %>%
 
 ```
 
-### (POSTERIOR) Predictive Checks
+### B. POSTERIOR Predictive Checks
 
 #### ...for linear models
 
@@ -338,3 +390,32 @@ Note that these two commands are basically identical. This is because the former
 There is a third command called `ppc_dens_overlay` but I'm not clear on what that does and when to use it.
 
 #### ...for logistic models
+
+## VIII. COMPUTING PERFORMANCE INDICIES
+
+You can do this at least two different ways. There's the way Kurz does it:
+
+```{r}
+
+# compute estimates of LOO and WAIC and add directly to the model object
+b5.1 <- add_criterion(b5.1, criterion = "loo")
+b5.2 <- add_criterion(b5.2, criterion = "loo")
+b5.3 <- add_criterion(b5.3, criterion = "loo")
+
+b5.1 <- add_criterion(b5.1, criterion = "waic")
+b5.2 <- add_criterion(b5.2, criterion = "waic")
+b5.3 <- add_criterion(b5.3, criterion = "waic")
+
+# compare the estimates
+loo_compare(b5.1, b5.2, b5.3, criterion = "loo") |>  
+  print(simplify = F)
+
+loo_compare(b5.1, b5.2, b5.3, criterion = "waic") |>  
+  print(simplify = F)
+```
+
+Or, the much faster and more efficient way using the easystats package:
+
+```{r}
+compare_performance(b6.6, b6.7, b6.8, metrics=c("WAIC", "LOOIC"), rank = FALSE) |> select(-Model)
+```
