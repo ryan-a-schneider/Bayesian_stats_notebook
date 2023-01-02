@@ -4,14 +4,12 @@ output: html_document
 date: '2022-07-15'
 ---
 
+Some preliminary set up...Lets build two simple models to run all the following code on
+
 ```{r setup, include=FALSE}
 
 pacman::p_load(tidyverse, bayesplot, tidybayes, brms, easystats)
-```
 
-Some preliminary set up...Lets build two simple models to run all the following code on
-
-```{r}
 # ========================= LINEAR ===============================================
 data(WaffleDivorce, package = "rethinking")
 d <- WaffleDivorce
@@ -398,13 +396,9 @@ You can do this at least two different ways. There's the way Kurz does it:
 ```{r}
 
 # compute estimates of LOO and WAIC and add directly to the model object
-b5.1 <- add_criterion(b5.1, criterion = "loo")
-b5.2 <- add_criterion(b5.2, criterion = "loo")
-b5.3 <- add_criterion(b5.3, criterion = "loo")
-
-b5.1 <- add_criterion(b5.1, criterion = "waic")
-b5.2 <- add_criterion(b5.2, criterion = "waic")
-b5.3 <- add_criterion(b5.3, criterion = "waic")
+b5.1 <- add_criterion(b5.1, criterion = c("loo", "waic"))
+b5.2 <- add_criterion(b5.2, criterion = c("loo", "waic"))
+b5.3 <- add_criterion(b5.3, criterion = c("loo", "waic"))
 
 # compare the estimates
 loo_compare(b5.1, b5.2, b5.3, criterion = "loo") |>  
