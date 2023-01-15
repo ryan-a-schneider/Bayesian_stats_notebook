@@ -2,7 +2,7 @@
 legaldmlab::primeR(analysis_type = "Bayes")
 ```
 
-## Crash Course on Logistic Regression
+## The Logistic Model
 
 The formula for logistic regression is:
 
@@ -162,37 +162,4 @@ fit2 <-
 # frequentest model for reference
 ref_model_1=glm(male ~ 1 + weight_z, data = my_data, family = "binomial")
 ref_model_2=glm(male ~ 1 + weight_z + height_z, data = my_data, family = "binomial")
-
-
-```
-
-## Test models from my thesis
-
-```{r}
-
-load("C:/Github stuff/Studies/psychlaw_methods_project/study1_thesis/Data and Models/pubdata.RData")
-head(pubdata)
-
-thesis_model_reference=glm(Accept_Reject ~ Guilt + PTS + Discount, data = pubdata, family = "binomial")
-
-
-thesis_model_brm=brm(data = pubdata,
-                     family = bernoulli,
-                     Accept_Reject ~ 1 + Guilt + Discount + PTS,
-                     prior = c(prior(normal(0, 2), class = Intercept),
-                               prior(normal(0, 2), class = b)),
-                     iter = 5000, warmup = 1000, chains = 4, cores = 4, seed = 21)
-
-
-thesis_model_brm2=brm(data = pubdata,
-                     family = binomial,
-                     Accept_Reject | trials(1) ~ 1 + Guilt + Discount + PTS,
-                     prior = c(prior(normal(0, 2), class = Intercept),
-                               prior(normal(0, 2), class = b)),
-                     iter = 5000, warmup = 1000, chains = 4, cores = 4, seed = 21)
-
-list(Frequentest_Model=thesis_model_reference,
-     Bayesian_Model_Bernoulli=thesis_model_brm) |> 
-  map(parameters)
-
 ```

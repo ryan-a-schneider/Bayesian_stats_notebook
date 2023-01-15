@@ -253,19 +253,48 @@ diag$ESS |> effectsize::interpret_ess()
 -   To plot just the thing, combine the desired {bayestestR} command with `plot`; for example:
 
 ```{r}
+
+# Significance testing with ROPE
+ropetest=rope(Thesis_Model,range = c(-0.181,0.181), ci=0.89, ci_method = "HDI")
+
+result <- equivalence_test(Thesis_Model)
+plot(result)
+
+
 plot(bayestestR::rope(b5.3))
 ```
 
 To customize the look and appearance of the plot, use the same format as above, and add ggplot themes or themes and colors from other packages:
 
 ```{r}
+
+#HDI visuals
+CIs <- hdi(Thesis_Model, ci = c(0.89))
+plot(CIs) + scale_fill_got_d(option = "white_walkers")
+
 plot(bayestestR::hdi(b5.3)) + 
   theme_classic()+
   scale_fill_metro(palette = "ice")
 
+
+#point estimates
+result <- point_estimate(Thesis_Model, centrality = c("map"))
+result
+plot(result, panel = FALSE)[[1]]
+
+
+# Probability of Direction
+plot(pds)+
+  scale_fill_manual(values=c("#FFC107", "#E91E63"))+
+  theme_classic()+
+  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "italic"))
+
+plot(p_direction(model, priors=FALSE))
+
 plot(bayestestR::pd(b5.3)) + 
   theme_classic()+
   scale_fill_metro(palette = "ice")
+
 ```
 
 ### Coefficient estimates
@@ -389,6 +418,8 @@ There is a third command called `ppc_dens_overlay` but I'm not clear on what tha
 
 #### ...for logistic models
 
+x
+
 ## VIII. COMPUTING PERFORMANCE INDICIES
 
 You can do this at least two different ways. There's the way Kurz does it:
@@ -408,7 +439,7 @@ loo_compare(b5.1, b5.2, b5.3, criterion = "waic") |>
   print(simplify = F)
 ```
 
-Or, the much faster and more efficient way using the easystats package:
+Can also use the easystats package for a one-line version of the above, but note that it doesn't have the same info.
 
 ```{r}
 compare_performance(b6.6, b6.7, b6.8, metrics=c("WAIC", "LOOIC"), rank = FALSE) |> select(-Model)
