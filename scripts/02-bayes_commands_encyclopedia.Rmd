@@ -351,6 +351,9 @@ b5.1 <-
 Then extract draws from the prior using the command noted above and plot
 
 ```{r}
+
+#### Kurz's method in his translation of Statistical Rethinking ####
+
 some_draws=brms::prior_draws(b5.1)
 
 some_draws %>% 
@@ -368,6 +371,11 @@ some_draws %>%
   coord_cartesian(ylim = c(-2, 2)) +
   theme_bw() +
   theme(panel.grid = element_blank())
+
+
+#### Default plots to do this super fast and easy ####
+
+plot(b5.1)
 
 ```
 
