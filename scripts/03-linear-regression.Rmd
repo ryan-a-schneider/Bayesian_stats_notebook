@@ -312,3 +312,13 @@ b5.1 <-
       sample_prior = T,
       file = here::here("fits", "b05.01"))
 ```
+
+## Model checking
+
+### Posterior Predictive Distribution
+
+Before you consider your results, check the Posterior Predictive Distribution. This distribution shows what the model is predicting future, unobserved data to look like.
+
+Under this distribution, you should see (A) all plausible values/no nonsensical predictions, and (B) predicted data that looks similar to your observed sample.
+
+`ppc_dens_overlay` is the command for RStanarm (where y is your data and yrep is the predicted data)
