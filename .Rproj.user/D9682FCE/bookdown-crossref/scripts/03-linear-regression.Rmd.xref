@@ -1,0 +1,19 @@
+h2:the-linear-model The Linear Model
+h2:specifying-model-components Specifying Model Components
+h4:alphas-prior Alpha’s prior
+h4:beta Beta
+h4:prior-for-sigma-sigma )
+h2:brms-code brms code
+h3:in-this-example-model In this example model…
+h3:diagnostic-checks Diagnostic checks
+h3:results Results
+h2:multiple-regression Multiple Regression
+h3:strategy-and-idea-for-multiple-regression Strategy and idea for multiple regression
+h3:understanding-the-model-and-its-parts Understanding the model and its parts
+h3:specifying-model-components-1 Specifying Model Components
+h4:likelihood Likelihood
+h4:prior-for-the-intercept Prior for the intercept
+h4:prior-for-slopes Prior for slopes
+h4:prior-for-sigma Prior for sigma
+h3:make-the-model-go Make the model go
+

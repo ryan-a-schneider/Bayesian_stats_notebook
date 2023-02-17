@@ -1,0 +1,7 @@
+h2:the-logistic-model The Logistic Model
+h3:terminology-and-key-concepts Terminology and key concepts
+h3:example-model Example model
+h3:translating-odds-ratios-into-predicted-probability Translating Odds Ratios into (predicted) probability
+h2:creating-a-bayesian-model-with-brms Creating a Bayesian model with brms
+h2:example-from-kruschkes-dbda Example from Kruschke’s DBDA
+

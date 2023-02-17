@@ -1,0 +1,24 @@
+h2:i.-brms-settings I. BRMS SETTINGS
+h3:iter-chains-and-warmup , , and 
+h3:seed 
+h3:variable-coding-and-the-intercept Variable coding and the intercept
+h2:ii.-updating-or-fitting-additional-models II. Updating or fitting additional models
+h2:iii.-summarizing-effects III. SUMMARIZING EFFECTS
+h2:iv.-extracting-___-from-the___ IV. EXTRACTING ___ FROM THE___
+h3:draws-from-the-posterior …draws from the posterior
+h3:draws-from-the-prior-predictive-distribution …draws from the PRIOR Predictive Distribution
+h3:fitted-i.e.-predicted-values-from-the-posterior-predictive-distribution …fitted (i.e., predicted) values from the POSTERIOR Predictive Distribution
+h3:residuals-from-the-model …residuals from the model
+h2:v.-monte-carlo-diagnostics V. MONTE CARLO DIAGNOSTICS
+h3:qualitative-diagnostics Qualitative diagnostics
+h3:quantitative-diagnostics-ess-and-rhat Quantitative diagnostics (ESS and Rhat)
+h2:vi.-bayesian-plots-and-figures VI. BAYESIAN PLOTS AND FIGURES
+h3:bayes-factors-ropes-posteriors-etc. Bayes factors, ROPE’s, posteriors, etc.
+h3:coefficient-estimates Coefficient estimates
+h2:vii.-predictive-checks-for-brms-models VII. PREDICTIVE CHECKS FOR BRMS MODELS
+h3:a.-prior-predictive-checks A. PRIOR predictive checks
+h3:b.-posterior-predictive-checks B. POSTERIOR Predictive Checks
+h4:for-linear-models …for linear models
+h4:for-logistic-models …for logistic models
+h2:viii.-computing-performance-indicies VIII. COMPUTING PERFORMANCE INDICIES
+

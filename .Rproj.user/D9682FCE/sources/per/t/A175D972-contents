@@ -1,0 +1,324 @@
+```{r setup, include=FALSE}
+
+pacman::p_load(tidyverse, brms, rstanarm, easystats)
+
+survey=legaldmlab::survey |> janitor::clean_names()
+
+# Frequentist model for reference/comparison of results
+reference_model=lm(moptim~sex + child + mnegaff, data=survey)
+```
+
+## The Linear Model
+
+```{r}
+library(rethinking)
+data(Howell1)
+d <- Howell1
+
+rm(Howell1)
+detach(package:rethinking, unload = T)
+
+tibble::as_tibble(d)
+```
+
+We're moving away from simple estimation now. Bayesian estimation is when you just use the likelihood and the prior to arrive at a posterior that ranks the plausability of the parameter values for the data. We want more than that now....
+
+What we want is to know the *relationship between the outcome and the predictors.* This requires making a new mathematical formula that maps out the relationship between our outcome and the things we think will predict it.
+
+> The strategy is to make the parameter for the mean of the Guassian Distribution, $\mu$, into a linear function of the predictor variable and other, new parameters that we invent. This is often simply called the linear model.
+>
+> The linear model strategy instructs the golem to assume that **the predictor variable has a** **constant and additive relationship** to the mean of the outcome. (emphasis added)
+
+Thus, the linear model says the relationship between the predictors and the means is: $\mu_i=\alpha+\beta(x_i-xbar)$, where xbar is the average of the observed heights.
+
+> The golem then computes the posterior distribution of this constant relationship.
+>
+> The mean $\mu$ is no longer a parameter to be estimated. Rather...$\mu_i$ is constructed from other parameters, $\alpha$ and $\beta$, and the observed variable x. This is not a stochastic relationship [i.e., one that is randomly distributed]...
+
+That there's an = sign instead of a tilde tells us that the values of $\mu_i$ are *deterministic*; that they are determined $\alpha$, $\beta$, and $x_i$; once you know those, you know exactly what $\mu_i$ is.
+
+So all together, we have...
+
+-   The likelihood function that describes our data and how it was generated: $h_i {\sim} Normal (\mu, \sigma)$
+
+-   The prior for the location, alpha (used to be $\mu$ when we were only doing estimation): $\alpha {\sim} Normal (178,20)$
+
+    -   The prior for the variability, sigma, that goes with the location parameter alpha: $\sigma {\sim} Uniform(0,50)$
+
+-   The Beta parameter's prior, $\beta{\sim}Normal (0,10)$
+
+And our linear function that shows how each of these things is related to calculate predicted outcomes: $\mu_i=\alpha+\beta(x_i-xbar)$
+
+The parameters stand for the strength of relationship between $\mu$ and some other variable. The posterior ranks each of the infinite possible combinations of parameter values by their logical plausibility, given the observed data.
+
+Imagine an example where we have weights of 50 people and we want to predict their height from these weights. The height data, $h$, we assume is normally distributed like so: $h_i{\sim}N(\mu_i,\sigma)$.
+
+This formula represents the likelihood function. It says that *each individual height* comes from **a distribution with some mean** and some variance. Importantly, note that $\mu_i$ is the mean for a given $h_i$; it is the mean for the distribution from which an individual data point came from.
+
+What linear regression does is plot the means of variables that are (assumed to be) normally distributed. The following linear function is used to map out the relationship of parameters $\alpha$ and $\beta$:
+
+$$
+\mu_i=\alpha + \beta(X_i-\overline{X})
+$$
+
+Within this formula:
+
+-   $\alpha$ is the starting point for the equation; it provides a point from which the equation can begin to make predictions. It is the expected average value for the DV when all IV's are held at zero. In other words, the mean of the DV, across the whole sample, before you enter any variables into your model. It's the point at which you start with no other info.
+
+-   $\beta$ is the correlation between the starting point and the individual data points gathered in the sample
+
+Each mean, $\mu_i$, is a function of $\alpha$ (the intercept, a constant) and $\beta$ (the slope; i.e., the rate at which the observed-variable X changes the mean). But remember...each individual $\mu_i$ that this function generates is the center of *the specific distribution that* $X_i$ *is thought to come from.*
+
+In sum: The intercept gives you a starting point, and the correlation gives you the direction and strength of the relationship between the starting point and each data point $X_i$ in the sample. Combined, you can use these two pieces of info to map out the likely **average** value
+
+## Specifying Model Components
+
+When building a linear model, you have to specify each component in the above formula. There are three parameters that need priors: $\alpha$, $\beta$, and $\sigma$.
+
+#### Alpha's prior
+
+$\alpha$ represents the expected starting point for your DV with no other information in the model. Where do you believe your model starts? Therefore, this prior should be set to your expected value for the DV, on average, taking no information into account. (In this way, it can be thought of kind of like the location setting).
+
+-   *Example*: In a model of height where the average height of individuals is expected to be 178cm, and whole sample means should be within 40cm ($\pm2$ SD's; 1 SD= 20cm) of this mean of means, the prior would be: $$\alpha {\sim} Normal(178, 20)$$
+
+-   *Setting in brms:* `Class = Intercept` is the prior for where the regression line crosses the y-intercept.
+
+#### Beta
+
+$\beta$ is the slope that describes the rate of change for the included variable/effect; i.e., the correlations/regression coefficients. These are the slopes that answer the question, "*what is the change expected in the DV, when variable X changes by 1 unit?"*
+
+Priors for beta coefficients should always be centered on zero to allow the possibility of a zero-effect (relation) with the DV
+
+#### *Prior for sigma (*$\sigma$)
+
+-   While the sigma value in the intercept prior describes the variability of whole groups about the mean, this prior for $\sigma$ describes the variability of individuals about the mean. This value is necessary to include in the model because by definition, a normally distributed variable has a mean and some variation about the mean. Thus, the posterior is a joint distribution $Pr(\mu,\sigma)$ . Ultimately, however, since this is a "nuisance" parameter we don't care about, this parameter will be integrated out, and the final posterior we interpret will be a marginal posterior that describes uncertainty in $\mu$ accounting for all possible values of $\sigma$
+
+-   Example: In the same model of height above, *individuals* are expected to be within 100cm of the center/average value (1 SD= 50cm). The prior would be:$$\sigma {\sim} uniform(0,50)$$
+
+-   *Setting in brms:* `Class = sigma` is for the sigma parameter, describing the spread of individual deviations from the mean.
+
+## brms code
+
+```{r}
+brms_fit <-brm(moptim ~ 1,
+               family = gaussian(link = "identity"),
+               data = survey,                
+               prior = c(
+                 prior(normal(3, 2), class = Intercept), # expected mean and dev. of DV, on the scale of the DV's unit
+                 prior(normal(0, 3), class= sigma), 
+                 prior(normal(0, 3), class = b, coef= sexMALES),
+               iter = 28000, warmup = 27000, chains = 3, cores = 3, seed = 4))
+```
+
+-   Setting `class=b` and *not* specifying the coefficient sets the same prior for *all* regression coefficients
+
+### In this example model...
+
+-   ***Intercept:*** Individuals are expected to be at an average of 3 (out of a possible 5) on their level of optimism; and 95% of individuals will be within 2 SD's of 3
+
+-   ***Effects:*** The priors for all effects are centered at 0 to indicate a possible zero rate of change (slope) with the DV; and the slope is likely within 3 units
+
+-   ***Sigma:*** Individuals are expected to vary from the average of 3 on the DV by 3 units; 95% of people will be no more than 6 away from the center of the group average
+
+```{r}
+
+brms_fit <-brm(moptim ~ 1 + sex + child + mnegaff,
+               family = gaussian(link = "identity"),
+               data = survey,                
+               prior = c(
+                 prior(normal(3, 2), class = Intercept), # expected mean and dev. of DV, on the scale of the DV's unit
+                 prior(normal(0, 3), class= sigma), # expected variation of individuals from Intercept's Prior mean
+                 # expected slopes for effects
+                 prior(normal(0, 3), class = b, coef= sexMALES),
+                 prior(normal(0, 3), class = b, coef= childYES),
+                 prior(normal(0, 3), class = b, coef= mnegaff)), # expected variation of individuals from Intercept's prior
+               iter = 28000, warmup = 27000, chains = 3, cores = 3, seed = 4)
+
+
+rstan_fit=stan_glm(moptim ~ 1 + sex + child + mnegaff, 
+                    family= gaussian(link = "identity"), data= survey, 
+                    prior = student_t(3,location=c(0,0,0), scale=c(3,3,3), autoscale = FALSE),
+                    #prior_intercept = normal(), 
+                    algorithm = c("sampling"), 
+                    mean_PPD = TRUE,
+                    adapt_delta = 0.95, 
+                    chains=3, iter=4000, cores=3)
+```
+
+### Diagnostic checks
+
+```{r}
+# grab diagnostic info for both MCMC models
+diagnostics=list(rstan_model=rstan_fit,
+                 brms_model=brms_fit) |> 
+  map(diagnostic_posterior)
+
+# interpret diagnostic info
+diagnostics |> map_df(select, contains("ESS")) |> map(interpret_ess)
+diagnostics |> map_df(select, contains("Rhat")) |> map(interpret_rhat)
+```
+
+All chains converged; and both and have sufficient ESS. Parameter values can be interpreted...
+
+### Results
+
+Compare parameter estimates of all three models...
+
+```{r}
+list(rstan_fit,brms_fit, reference_model) |> 
+  map(model_parameters)
+```
+
+*Interpretations of unstandardized coefficients and parameters*
+
+-   $\beta$ for sex:
+
+    -   Females are on average 0.09 units higher on optimism than males
+
+    -   **EFFECT EXISTANCE:** By frequentest standards, this effect is not statistically significant, *p*=.187. In the Bayesian framework, the effect is also uncertain to exist, *pd=*91%
+
+    -   **EFFECT IMPORTANCE/SIZE:** The effect of sex is likely too small to be meaningful (39% in ROPE)
+
+-   $\beta$ for child:
+
+    -   Those who have children are 0.14 points higher on optimism than those who do not.
+
+    -   In the frequentest framework, this effect is statistically significant, *p*=.045, 95% CI [.00, .27].
+
+    -   In the Bayesian framework, this effect likely exists (*pd= 97.79%*), but is of undecided/questionable importance (16.64% of values in ROPE).
+
+-   $\beta$ for mnegaff:
+
+    -   Participant's mean level of negative affect decreases 0.34 points for every 1-unit decrease in the DV, optimism
+
+    -   This effect is statistically significant, *p*\<.001
+
+    -   In Bayesian, the effect definitely exists (95% HDI [-.44, -.24] *pd=*100%) and is estimated to be large enough to be of practical importance (0% in ROPE)
+
+-   $\alpha$, the Intercept value: The predicted optimism score is 4.32, before considering the information captured by other variables (sex, whether they have a child, or what their mean level of negative affect is)
+
+## Multiple Regression
+
+### Strategy and idea for multiple regression
+
+1.  Nominate the **predictors** you want in the linear model of the mean
+2.  For each predictor, make a (slope) parameter that will measure its conditional association with the outcome
+3.  Multiply the (slope) parameter by the variable and add that term into the linear model
+
+### Understanding the model and its parts
+
+Considering an example from McElreath Ch. 5: Predicting divorce rates. We will be building a model that predicts divorce rate ($D$) from *Median age at time of marriage* (parameter $A$) and State Rate of Marriage, $M$.
+
+A linear model posits our data, $D_i$, is a linear function of parameters $\alpha$ (some constant) and $A$. Thus, our full linear model is:
+
+$$\mu_i=\alpha+\beta_AA_i$$
+
+The linear model is the function that tells us *how the value of the DV is related to the values of the IV's.* In this context it means...
+
+> The expected outcome for any state with marriage rate $M_i$ and a median age-at-marriage of $A_i$ is the sum of three independent terms (the intercept, the slope, and the individual values of the variable itself).
+
+It's also important to understand what each part of the model itself represents:
+
+-   The *likelihood function* is the function that generated your data. It's the hypothetical "DGP", or "data-generating process."
+
+-   The *intercept* is the average expected value for the DV (i.e., your observed data) when all other variables are held at zero/before you enter any variables into the model.
+
+-   The *slopes/beta weights* represent the **rate** of change between variable X and observed data Y. As you increase on one, what happens to the other.
+
+Thus, another way to read the above is: "The means..."
+
+Now lets load the data.
+
+```{r}
+data(WaffleDivorce, package = "rethinking")
+d <- WaffleDivorce
+
+d <-
+  d %>% 
+  mutate(d = rethinking::standardize(Divorce),
+         m = rethinking::standardize(Marriage),
+         a = rethinking::standardize(MedianAgeMarriage))
+
+head(d)
+```
+
+### Specifying Model Components
+
+#### Likelihood
+
+Our observed data (i.e., our Dependent Variable) is *Divorce Rate of State.* We'll call this $D_i$. We think that this variable came from a normal distribution, so our likelihood function will be:
+
+$$
+D_i {\sim}Normal(\mu, \sigma)
+$$
+
+#### Prior for the intercept
+
+> Since the outcome and the predictor are both standardized, the intercept $\alpha$ should end up very close to zero.
+
+So our prior for the intercept is going to be...
+
+$$
+\alpha {\sim}Normal(0,0.2)
+$$
+
+This is pretty strict. But it makes sense.
+
+#### Prior for slopes
+
+***Median Age at Marriage*** ($A$)
+
+Since this variable is also standardized, if the standard deviation on our slope parameter for our predictor, $\beta_A$, is 0.5, that means that a change in 1 SD change in marriage is associated with a 1 SD change in divorce. How strong is this? Does this make sense? Check the data to see how big 1 SD is for $A$
+
+```{r}
+sd(d$MedianAgeMarriage)
+```
+
+Turns out it's 1.2. So...
+
+> a change of 1.2 years in median age at marriage is associated with a full standard deviation change in the outcome variable.
+>
+> [Going up or down just barely over a year in age of marriage will swing the value of the DV a full standard deviation as well]
+>
+> That seems like an insanely strong relationship. The prior above thinks that only 5% of plausible slopes are more extreme than 1.
+
+...but we're going to stick with it for the moment and model it like this anyway to see what it looks like. Final prior for parameter $A$'s slope is...
+
+$$\beta_A {\sim} Normal(0,0.5)$$
+
+***Rate of Marriage*** ($M$)
+
+info here
+
+#### Prior for sigma
+
+-   Finally, prior for $\sigma$ is $\sigma {\sim}Exponential(1)$, which restricts it to positive values (since you can't have a negative variance/SD).
+
+### Make the model go
+
+Regression model go brrrrrr
+
+```{r}
+
+b5.1 <- 
+  brm(data = d, 
+      family = gaussian,
+      d ~ 1 + a,
+      prior = c(prior(normal(0, 0.2), class = Intercept),
+                prior(normal(0, 0.5), class = b),
+                prior(exponential(1), class = sigma)),
+      iter = 2000, warmup = 1000, chains = 4, cores = 4,
+      seed = 5,
+      sample_prior = T,
+      file = here::here("fits", "b05.01"))
+```
+
+## Model checking
+
+### Posterior Predictive Distribution
+
+Before you consider your results, check the Posterior Predictive Distribution. This distribution shows what the model is predicting future, unobserved data to look like.
+
+Under this distribution, you should see (A) all plausible values/no nonsensical predictions, and (B) predicted data that looks similar to your observed sample.
+
+`ppc_dens_overlay` is the command for RStanarm (where y is your data and yrep is the predicted data)
