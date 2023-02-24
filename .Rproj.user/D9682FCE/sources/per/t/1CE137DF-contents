@@ -417,12 +417,11 @@ This shows a regression line. To plot and compare the predicted posterior densit
 
 ```{r}
 performance::posterior_predictive_check(brms_fit)
+performance::check_posterior_predictions(brms_fit)
 pp_check(brms_fit)
 ```
 
 Note that these two commands are basically identical. This is because the former merely acts as a easy-to-remember shortcut that passes your model to the latter.
-
-There is a third command called `ppc_dens_overlay` but I'm not clear on what that does and when to use it.
 
 #### ...for logistic models
 

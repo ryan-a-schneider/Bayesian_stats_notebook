@@ -38,13 +38,15 @@ quick_params=function(model){
 }
 ```
 
+**Definitions:**
+
 An Index variable is one variable that has one level for each category of the factor. A dummy (AKA "Indicator") variable is k-1 variables that are coded 0/1 to indicate the presence or absence of a level.
 
-The difference between two groups is another parameter that you have to estimate; *you cannot assume that the difference between two groups, as it is observed in your sample, is measured perfectly without any error.* The distance between the center of two distributions requires an estimate.
+**Why do we need a special type of coding (Index)? Why can't we always use dummy coding?**
 
-Dummy and index models are doing very similar things, just from different angles. The dummy-coded model calculates an intercept (i.e., the average starting value) across the whole sample, and then compares the difference from each group to the intercept. In this case, the estimated beta-weights represent the changes/slopes/correlation coefficients.
+Because the difference between two groups is another parameter that you have to estimate; *you cannot assume that the difference between two groups, as it is observed in your sample, is measured perfectly without any error.* The distance between the center of two distributions requires an estimate.
 
-Index models instead calculate a separate intercept (i.e., the mean) for each level/group on its own. In this instance, the beta's represent the means of each group. This let's you compute the differences between two groups easier than the dummy-model.
+Dummy and index models are doing very similar things, just from different angles. The dummy-coded model calculates an intercept (i.e., the average starting value) across the whole sample, and then compares the difference from each group to the intercept. In this case, the estimated beta-weights represent the changes/slopes/correlation coefficients. Index models instead calculate a separate intercept (i.e., the mean) for each level/group on its own. In this instance, the beta's represent the means of each group. This let's you compute the differences between two groups easier than the dummy-model.
 
 Therefore, if what you care about is computing the exact difference between two groups and making that contrast comparison, index coding is more useful.
 

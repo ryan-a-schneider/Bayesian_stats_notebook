@@ -3,7 +3,7 @@
     "path": "C:/Github stuff/Bookdowns/Bayesian_stats_notebook/scripts/02b-coding-variables.Rmd",
     "project_path": "scripts/02b-coding-variables.Rmd",
     "type": "r_markdown",
-    "hash": "1291763038",
+    "hash": "3828632592",
     "contents": "",
     "dirty": false,
     "created": 1674219971535.0,
@@ -16,14 +16,16 @@
         "rmdVisualWrapConfigured": "true",
         "docOutlineVisible": "1",
         "rmdVisualCollapsedChunks": "",
-        "rmdVisualModeLocation": "2:0"
+        "rmdVisualModeLocation": "3045:1120",
+        "cursorPosition": "42,0",
+        "scrollLine": "0"
     },
     "folds": "",
-    "lastKnownWriteTime": 1672924455,
+    "lastKnownWriteTime": 1677244643,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1672924455,
+    "last_content_update": 1677244643410,
     "read_only": false,
     "read_only_alternatives": []
 }

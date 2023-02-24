@@ -3,7 +3,7 @@
     "path": "C:/Github stuff/Bookdowns/Bayesian_stats_notebook/scripts/02-bayes_commands_encyclopedia.Rmd",
     "project_path": "scripts/02-bayes_commands_encyclopedia.Rmd",
     "type": "r_markdown",
-    "hash": "238003092",
+    "hash": "1472224420",
     "contents": "",
     "dirty": false,
     "created": 1674219970769.0,
@@ -16,16 +16,17 @@
         "rmdVisualWrapConfigured": "true",
         "docOutlineVisible": "1",
         "rmdVisualCollapsedChunks": "",
-        "rmdVisualModeLocation": "2:0",
-        "cursorPosition": "377,10",
-        "scrollLine": "0"
+        "rmdVisualModeLocation": "11943:6033",
+        "cursorPosition": "419,50",
+        "scrollLine": "0",
+        "last_setup_crc32": "C38CC5768108fd9d"
     },
     "folds": "",
-    "lastKnownWriteTime": 1675435031,
+    "lastKnownWriteTime": 1677244036,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1675435031234,
+    "last_content_update": 1677244036087,
     "read_only": false,
     "read_only_alternatives": []
 }

@@ -8,7 +8,7 @@ survey=legaldmlab::survey |> janitor::clean_names()
 reference_model=lm(moptim~sex + child + mnegaff, data=survey)
 ```
 
-## The Linear Model
+# The Linear Model
 
 ```{r}
 library(rethinking)
@@ -77,17 +77,17 @@ When building a linear model, you have to specify each component in the above fo
 
 #### Alpha's prior
 
-$\alpha$ represents the expected starting point for your DV with no other information in the model. Where do you believe your model starts? Therefore, this prior should be set to your expected value for the DV, on average, taking no information into account. (In this way, it can be thought of kind of like the location setting).
+$\alpha$ represents the expected starting point for your DV with no other information in the model. Therefore, **this prior should be set to your expected value for the DV, on average, taking no information into account;** or in short, just the expected average of the DV across the whole sample.
 
--   *Example*: In a model of height where the average height of individuals is expected to be 178cm, and whole sample means should be within 40cm ($\pm2$ SD's; 1 SD= 20cm) of this mean of means, the prior would be: $$\alpha {\sim} Normal(178, 20)$$
+*Example (continuous)*: In a model of height where the average height of individuals is expected to be 178cm, and whole sample means should be within 40cm ($\pm2$ SD's; 1 SD= 20cm) of this mean of means, the prior would be: $$\alpha {\sim} Normal(178, 20)$$
 
--   *Setting in brms:* `Class = Intercept` is the prior for where the regression line crosses the y-intercept.
+*Example (categorical):* For categorical variables, you're only considering the average height of the baseline comparison group...
 
 #### Beta
 
-$\beta$ is the slope that describes the rate of change for the included variable/effect; i.e., the correlations/regression coefficients. These are the slopes that answer the question, "*what is the change expected in the DV, when variable X changes by 1 unit?"*
+$\beta$ is the slope that describes the rate of change for the included variable/effect; i.e., the correlations/regression coefficients. These are the slopes that answer the question, "*what is the change expected in the DV, when variable X changes by 1 unit?".*
 
-Priors for beta coefficients should always be centered on zero to allow the possibility of a zero-effect (relation) with the DV
+Priors for beta coefficients, if doing a traditional significance test, should always be centered on zero to allow the possibility of a zero difference or null relation with the DV. Their scale should be reasonable.
 
 #### *Prior for sigma (*$\sigma$)
 
@@ -97,7 +97,9 @@ Priors for beta coefficients should always be centered on zero to allow the poss
 
 -   *Setting in brms:* `Class = sigma` is for the sigma parameter, describing the spread of individual deviations from the mean.
 
-## brms code
+## brms Code
+
+Setting `class=b` and *not* specifying the coefficient sets the same prior for *all* regression coefficientsSetting `class=b` and *not* specifying the coefficient sets the same prior for *all* regression coefficients
 
 ```{r}
 brms_fit <-brm(moptim ~ 1,
@@ -110,9 +112,7 @@ brms_fit <-brm(moptim ~ 1,
                iter = 28000, warmup = 27000, chains = 3, cores = 3, seed = 4))
 ```
 
--   Setting `class=b` and *not* specifying the coefficient sets the same prior for *all* regression coefficients
-
-### In this example model...
+In this example model...
 
 -   ***Intercept:*** Individuals are expected to be at an average of 3 (out of a possible 5) on their level of optimism; and 95% of individuals will be within 2 SD's of 3
 
@@ -145,7 +145,7 @@ rstan_fit=stan_glm(moptim ~ 1 + sex + child + mnegaff,
                     chains=3, iter=4000, cores=3)
 ```
 
-### Diagnostic checks
+### Monte Carlo Diagnostic checks
 
 ```{r}
 # grab diagnostic info for both MCMC models
@@ -158,7 +158,11 @@ diagnostics |> map_df(select, contains("ESS")) |> map(interpret_ess)
 diagnostics |> map_df(select, contains("Rhat")) |> map(interpret_rhat)
 ```
 
-All chains converged; and both and have sufficient ESS. Parameter values can be interpreted...
+### Model Diagnostic Checks
+
+```{r}
+performance::check_model(brms)
+```
 
 ### Results
 
@@ -175,23 +179,19 @@ list(rstan_fit,brms_fit, reference_model) |>
 
     -   Females are on average 0.09 units higher on optimism than males
 
-    -   **EFFECT EXISTANCE:** By frequentest standards, this effect is not statistically significant, *p*=.187. In the Bayesian framework, the effect is also uncertain to exist, *pd=*91%
+    -   **EFFECT EXISTANCE:** In the Bayesian framework, the effect is uncertain to exist, *pd=*91%
 
-    -   **EFFECT IMPORTANCE/SIZE:** The effect of sex is likely too small to be meaningful (39% in ROPE)
+    -   **EFFECT IMPORTANCE/SIZE:** The effect of sex is likely too small to be meaningful (39% of the most credible values are in the ROPE)
 
 -   $\beta$ for child:
 
     -   Those who have children are 0.14 points higher on optimism than those who do not.
-
-    -   In the frequentest framework, this effect is statistically significant, *p*=.045, 95% CI [.00, .27].
 
     -   In the Bayesian framework, this effect likely exists (*pd= 97.79%*), but is of undecided/questionable importance (16.64% of values in ROPE).
 
 -   $\beta$ for mnegaff:
 
     -   Participant's mean level of negative affect decreases 0.34 points for every 1-unit decrease in the DV, optimism
-
-    -   This effect is statistically significant, *p*\<.001
 
     -   In Bayesian, the effect definitely exists (95% HDI [-.44, -.24] *pd=*100%) and is estimated to be large enough to be of practical importance (0% in ROPE)
 
@@ -320,5 +320,3 @@ b5.1 <-
 Before you consider your results, check the Posterior Predictive Distribution. This distribution shows what the model is predicting future, unobserved data to look like.
 
 Under this distribution, you should see (A) all plausible values/no nonsensical predictions, and (B) predicted data that looks similar to your observed sample.
-
-`ppc_dens_overlay` is the command for RStanarm (where y is your data and yrep is the predicted data)
