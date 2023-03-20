@@ -3,7 +3,7 @@
     "path": "C:/Github stuff/Bookdowns/Bayesian_stats_notebook/scripts/04-logistic-regression.Rmd",
     "project_path": "scripts/04-logistic-regression.Rmd",
     "type": "r_markdown",
-    "hash": "1682544486",
+    "hash": "1495544481",
     "contents": "",
     "dirty": false,
     "created": 1674219972914.0,
@@ -16,14 +16,16 @@
         "rmdVisualWrapConfigured": "true",
         "docOutlineVisible": "1",
         "rmdVisualCollapsedChunks": "",
-        "rmdVisualModeLocation": "70:0"
+        "rmdVisualModeLocation": "864:0",
+        "cursorPosition": "26,19",
+        "scrollLine": "0"
     },
     "folds": "",
-    "lastKnownWriteTime": 1673793686,
+    "lastKnownWriteTime": 1678496037,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1673793686,
+    "last_content_update": 1678496037346,
     "read_only": false,
     "read_only_alternatives": []
 }

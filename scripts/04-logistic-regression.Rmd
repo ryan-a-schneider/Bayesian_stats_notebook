@@ -38,7 +38,7 @@ parameters(m) |> mutate(Odds_Ratio=exp(2)) |> relocate(Odds_Ratio, .before = 2)
 
 -   The coefficient of 0.31 for mpg is interpreted as the **expected change in log odds for a one-unit increase in the IV.**
 
--   If you turn this into an odds ratio, you get 7.39. *For every 1-point increase in the predictor (MPG), the odds of a car being a manual transmission increase by a factor of 7.39 times*
+-   If you turn this into an odds ratio, you get 1.19. *For every 1-point increase in the predictor (MPG), the odds of a car being a manual transmission increase by a factor of 1.19 times*
 
 -   (if this was a categorical variable, it would say that the odds are x% higher for group A vs. group B)
 
@@ -82,40 +82,6 @@ A car with an MPG rating of 30 has a 93% probability of being a manual transmiss
 SEE HERE: <https://bookdown.org/ajkurz/DBDA_recoded/dichotomous-predicted-variable.html>
 
 Generic code for logistic regression using a ***Bernoulli*** distribution. Kurz: ***This syntax presumes the predictor variables have already been standardized.***
-
-```{r}
-fit <-
-  brm(data = my_data, 
-      family = bernoulli,
-      y ~ 1 + x1 + x2,
-      prior = c(prior(normal(0, 2), class = Intercept),
-                prior(normal(0, 2), class = b)))
-```
-
-Code for using a ***Binomial*** distribution
-
-```{r}
-fit <-
-  brm(data = my_data, 
-      family = binomial,
-      y | trials(1) ~ 1 + x1 + x2,
-      prior = c(prior(normal(0, 2), class = Intercept),
-                prior(normal(0, 2), class = b)))
-```
-
-***The results of these two should be the same as long as the data are not aggregated--but the binomial version requires the DV to be of integer or double structure, not as a factor***. This makes sense, because non-aggregated data would be categorical: In essence, in a single Bernouli trial, the outcome is either A or B, true or false, etc. Aggregated data, on the other hand, would be a sum/tally of outcome-A, number-of-trues or successes, etc.
-
-So in short:
-
--   if you're using non-aggregated data, you can use either formula above. If you ARE using aggregated data, you *must* use the second version.
-
--   Probably easiest therefore to always use the latter, and remember two switch the number of trials in line three based on whether or not the data is aggregated or whether each data point is a single Bernoulli event.
-
-In **brms**, the default link for both `family = bernoulli` and `family = binomial` models is `logit`.
-
-Also, note the additional `| trials(1)` syntax on the left side of the model formula. You could get away with omitting this in older versions of **brms**. But newer versions bark at you to specify how many of trials each row in the data represents. This is because, as with the baseball data we'll use later in the chapter, the binomial distribution includes an n parameter. When working with un-aggregated data like what we're about to do, below, it's presumed that n=1.
-
-Lastly, note that *not specifying the coefficient in the* `class = b` line will apply that prior to all effects.
 
 *HOW TO STANDARDIZE a variable*
 

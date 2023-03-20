@@ -10,6 +10,8 @@ reference_model=lm(moptim~sex + child + mnegaff, data=survey)
 
 # The Linear Model
 
+## Simple linear regression
+
 ```{r}
 library(rethinking)
 data(Howell1)
@@ -97,7 +99,7 @@ Priors for beta coefficients, if doing a traditional significance test, should a
 
 -   *Setting in brms:* `Class = sigma` is for the sigma parameter, describing the spread of individual deviations from the mean.
 
-## brms Code
+## Example model
 
 Setting `class=b` and *not* specifying the coefficient sets the same prior for *all* regression coefficientsSetting `class=b` and *not* specifying the coefficient sets the same prior for *all* regression coefficients
 
@@ -164,14 +166,7 @@ diagnostics |> map_df(select, contains("Rhat")) |> map(interpret_rhat)
 performance::check_model(brms)
 ```
 
-### Results
-
-Compare parameter estimates of all three models...
-
-```{r}
-list(rstan_fit,brms_fit, reference_model) |> 
-  map(model_parameters)
-```
+### Interpreting Regression Coefficients
 
 *Interpretations of unstandardized coefficients and parameters*
 
@@ -196,6 +191,10 @@ list(rstan_fit,brms_fit, reference_model) |>
     -   In Bayesian, the effect definitely exists (95% HDI [-.44, -.24] *pd=*100%) and is estimated to be large enough to be of practical importance (0% in ROPE)
 
 -   $\alpha$, the Intercept value: The predicted optimism score is 4.32, before considering the information captured by other variables (sex, whether they have a child, or what their mean level of negative affect is)
+
+```{r}
+report::report_parameters()
+```
 
 ## Multiple Regression
 
