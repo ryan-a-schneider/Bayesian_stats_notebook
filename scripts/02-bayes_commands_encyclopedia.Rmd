@@ -49,9 +49,40 @@ logistic_fit <-
       seed = 21)
 ```
 
-## I. BRMS SETTINGS
+## 1. BRMS
+
+```{r}
+# Basic linear model example
+brms_fit <-brm(moptim ~ 1,
+               family = gaussian(link = "identity"),
+               data = survey,                
+               prior = c(
+                 prior(normal(3, 2), class = Intercept), # expected mean and dev. of DV, on the scale of the DV's unit
+                 prior(normal(0, 3), class= sigma), 
+                 prior(normal(0, 3), class = b, coef= sexMALES),
+               iter = 28000, warmup = 27000, chains = 3, cores = 3, seed = 4))
+
+
+# Basic logistic models
+
+fit <-
+  brm(data = my_data, 
+      family = bernoulli, # only works with NON-aggregated data
+      y ~ 1 + x1 + x2,
+      prior = c(prior(normal(0, 2), class = Intercept),
+                prior(normal(0, 2), class = b)))
+
+fit <-
+  brm(data = my_data, 
+      family = binomial, # works with both aggregated and non-agg data
+      y | trials(1) ~ 1 + x1 + x2,
+      prior = c(prior(normal(0, 2), class = Intercept),
+                prior(normal(0, 2), class = b)))
+```
 
 Common stuff you should know...
+
+-   For the logistic models, the `family=binomial` version will only work with a DV that is stored as a `double` or `integer` type variable; it does not work with dichotomous `factor` variables. If you have a factor, use the Bernoulli version
 
 ### `iter`, `chains`, and `warmup`
 
@@ -115,7 +146,7 @@ Dummy and index models are doing very similar things, just from different angles
 
 Index models instead calculate a separate intercept (i.e., the mean) for each level/group on its own. In this instance, the beta's represent the means of each group. This let's you compute the differences between two groups easier than the dummy-model.
 
-## II. Updating or fitting additional models
+## 2. UPDATING (TO FIT ADDITIONAL MODELS)
 
 Do you want to fit more than one model on the same data? Of course you do. If the models aren't radically different, it might be easier to use the `update` function that fitting each model anew with another `brm()` call. Using `update()` lets brms reuse the stan code it compiled for the first model, so it takes less time to build subsequent models.
 
@@ -140,7 +171,7 @@ brms_dummy_multi <-update(brms_dummy_single, newdata = practice_data,
                           formula. = ~ .-poc + poc_5 + poc_8)
 ```
 
-## III. SUMMARIZING EFFECTS
+## 3. SUMMARIZING EFFECTS
 
 These two upper commands give summaries of ALL effects, including the sigma parameter and the Log Posterior Density (lp\_\_). The two lower ones are probably what you'll want to use. They give you info on *only the main effects*. No sigma, and no lp\_\_.
 
@@ -164,7 +195,7 @@ bayestestR::describe_posterior(b5.3) # most detailed info on the posterior main 
 describe_posterior(b5.3) |> format_table()
 ```
 
-## IV. EXTRACTING \_\_\_ FROM THE\_\_\_
+## 4. EXTRACTING \_\_\_ FROM THE\_\_\_
 
 ### ...draws from the posterior
 
@@ -213,7 +244,7 @@ residuals(b5.4b) |>
   bind_cols(d)
 ```
 
-## V. MONTE CARLO DIAGNOSTICS
+## 5. MONTE CARLO DIAGNOSTICS
 
 ### Qualitative diagnostics
 
@@ -242,7 +273,7 @@ diag$Rhat |> effectsize::interpret_rhat()
 diag$ESS |> effectsize::interpret_ess()
 ```
 
-## VI. BAYESIAN PLOTS AND FIGURES
+## 6. BAYESIAN PLOTS AND FIGURES
 
 ### Bayes factors, ROPE's, posteriors, etc.
 
@@ -326,7 +357,7 @@ post %>%
         panel.grid = element_blank())
 ```
 
-## VII. PREDICTIVE CHECKS FOR BRMS MODELS
+## 7. PREDICTIVE CHECKS FOR BRMS MODELS
 
 Both prior and posterior predictive checks below.
 
@@ -427,7 +458,7 @@ Note that these two commands are basically identical. This is because the former
 
 x
 
-## VIII. COMPUTING PERFORMANCE INDICIES
+## 8. COMPUTING PERFORMANCE INDICIES
 
 You can do this at least two different ways. There's the way Kurz does it:
 

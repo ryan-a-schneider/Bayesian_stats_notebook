@@ -10,4 +10,5 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Map/Workflow guide
 
-![](images/paste-700542C5.png)
+Vehtari's guide
+And Fife (2020)
