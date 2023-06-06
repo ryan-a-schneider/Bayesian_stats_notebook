@@ -49,7 +49,7 @@ logistic_fit <-
       seed = 21)
 ```
 
-## 1. BRMS
+## 1.A. BRMS
 
 ```{r}
 # Basic linear model example
@@ -145,6 +145,33 @@ The difference between two groups is another parameter that you have to estimate
 Dummy and index models are doing very similar things, just from different angles. The dummy-coded model calculates an intercept (i.e., the average starting value) across the whole sample, and then compares the difference from each group to the intercept. In this case, the estimated beta-weights represent the changes/slopes/correlation coefficients.
 
 Index models instead calculate a separate intercept (i.e., the mean) for each level/group on its own. In this instance, the beta's represent the means of each group. This let's you compute the differences between two groups easier than the dummy-model.
+
+## 1.B. RSTANARM
+
+```{r}
+# LINEAR 
+
+# rstan
+rstan_fit=stan_glm(data = survey,
+                   formula = moptim ~ 1 + sex + child + mnegaff, 
+                   family = gaussian(link = "identity"), 
+                   prior = student_t(3,location=c(0,0,0), scale=c(3,3,3), autoscale = FALSE),
+                   #prior_intercept = normal(), 
+                   algorithm = c("sampling"), 
+                   mean_PPD = TRUE,
+                   adapt_delta = 0.95, 
+                   chains= 3, iter=2000, cores=3)
+
+# LOGISTIC
+fit_rstan=stan_glm(data=pubdata, 
+                         family = binomial, 
+                         formula= Accept_Reject ~ PTS_text + DiscountCondition, 
+                         prior = c(student_t(5, 0, 1), class = "b"),
+                         prior_intercept = normal(location = 0, scale = NULL, autoscale = TRUE), 
+                         prior_PD = FALSE, 
+                         iter=2000, chains=4, cores=4)
+                         #diagnostic_file=file.path(tempdir(), "df5.csv"))
+```
 
 ## 2. UPDATING (TO FIT ADDITIONAL MODELS)
 
