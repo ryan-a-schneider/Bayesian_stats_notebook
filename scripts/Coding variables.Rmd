@@ -1,0 +1,271 @@
+---
+title: "Coding variable tests"
+output: html_document
+date: '2022-11-20'
+---
+
+```{r setup, include=FALSE}
+legaldmlab::primeR(analysis_type = "Bayes")
+
+data(milk, package = "rethinking")
+d <- milk
+rm(milk)
+
+as_tibble(d)
+
+houses <- c("Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin")
+
+d <-
+  d |>  
+  mutate(kcal.per.g_s = (kcal.per.g - mean(kcal.per.g)) / sd(kcal.per.g),
+         clade_Strepsir= ifelse(clade=="Strepsirrhine",1,0),
+         clade_NewWorldMonkey= ifelse(clade=="New World Monkey",1,0),
+         clade_OldWorldMonkey= ifelse(clade=="Old World Monkey",1,0),
+         house = sample(rep(houses, each = 8), size = n()))
+
+
+data(Howell1, package = "rethinking")
+
+Howell1=Howell1 |> mutate(sex=ifelse(male == 1, 2, 1),
+                          sex=factor(sex))
+
+
+#### Functions ######
+
+quick_params=function(model){
+  results=describe_posterior(model) |> select(-c(6:10))
+  return(results)
+}
+```
+
+**Definitions:**
+
+An Index variable is one variable that has one level for each category of the factor. A dummy (AKA "Indicator") variable is k-1 variables that are coded 0/1 to indicate the presence or absence of a level.
+
+**Why do we need a special type of coding (Index)? Why can't we always use dummy coding?**
+
+Because the difference between two groups is another parameter that you have to estimate; *you cannot assume that the difference between two groups, as it is observed in your sample, is measured perfectly without any error.* The distance between the center of two distributions requires an estimate.
+
+Dummy and index models are doing very similar things, just from different angles. The dummy-coded model calculates an intercept (i.e., the average starting value) across the whole sample, and then compares the difference from each group to the intercept. In this case, the estimated beta-weights represent the changes/slopes/correlation coefficients. Index models instead calculate a separate intercept (i.e., the mean) for each level/group on its own. In this instance, the beta's represent the means of each group. This let's you compute the differences between two groups easier than the dummy-model.
+
+Therefore, if what you care about is computing the exact difference between two groups and making that contrast comparison, index coding is more useful.
+
+## Dummy coding
+
+Use this type of coding when you want to compute a contrast; a difference score between two conditions.
+
+Using the dummy-coded variable `male`, in this model:
+
+-   $\alpha$ would be the intercept (i.e., the mean) for ***males only***
+
+-   and $\beta_1$ would be the ***expected change in the mean for females***, relative to males.
+
+This means males are the reference category against which females are being compared; and the coefficient is representing the change-score, the ***contrast*** between their means.
+
+### Note on brms coding
+
+KURZ SAYS TO SAVE SEX AS A FACTOR!!!!
+
+> When you fit a model with **brms** that excludes the typical intercept parameter--when you use the `0 + ...` syntax--you'll get a separate intercept for each of your factor variables. The `brm()` function noticed there were two levels for our `sex` factor, and therefore gave use two intercepts: `sex1` and `sex2`. Here's how you might compute the difference score.
+
+```{r}
+
+# `sex` is a single variable with two levels, saved as a factor
+# Intercept is suppressed; each factor has its own intercept (0+ format)
+# This is what he does in the "indicator" variable section
+b5.8 <- 
+  brm(data = Howell1, 
+      family = gaussian,
+      height ~ 0 + sex,
+      prior = c(prior(normal(178, 20), class = b),
+                prior(uniform(0, 50), class = sigma, ub = 50)),
+      iter = 2000, warmup = 1000, chains = 4, cores = 4,
+      seed = 5,
+      file = here::here("fits", "b05.08"))
+
+
+# `male is a dummy-coded, indicator variable
+# Accordingly, the intercept is NOT supressed, as it is needed for the male group
+# THIS IS HOW KURZ DOES THE DUMMY-CODED VERSION OF THE MODEL
+b5.8b <- 
+  brm(data = Howell1, 
+      family = gaussian,
+      height ~ 1 + male,
+      prior = c(prior(normal(178, 20), class = Intercept),
+                prior(normal(0, 10), class = b),
+                prior(uniform(0, 50), class = sigma, ub = 50)),
+      iter = 2000, warmup = 1000, chains = 4, cores = 4,
+      seed = 5,
+      file = here::here("fits", "b05.08b"))
+
+
+# another example, just to show that the results 
+test=brm(data = Howell1, 
+      family = gaussian,
+      kcal.per.g_s ~ 1 + sex,
+      prior = c(prior(normal(0, 0.5), class = b),
+                prior(exponential(1), class = sigma)),
+      iter = 2000, warmup = 1000, chains = 4, cores = 4,
+      seed = 5)
+
+
+list(Factor_coding=b5.8, Dummy_coding=b5.8b) |> map(quick_params)
+
+quick_params(test)
+
+
+
+
+# INDICATOR approach
+test1=brm(data = d, 
+         family = gaussian,
+         kcal.per.g_s ~ 0 + clade,
+         prior = c(prior(normal(0, 0.5), class = b),
+                   prior(exponential(1), class = sigma)),
+         iter = 2000, warmup = 1000, chains = 4, cores = 4,
+         seed = 5)
+
+
+# Dummy approach
+test2=brm(data = d, 
+         family = gaussian,
+         kcal.per.g_s ~ 1 + clade_Strepsir + clade_NewWorldMonkey + clade_OldWorldMonkey,
+         prior = c(prior(normal(0, 0.5), class = b),
+                   prior(exponential(1), class = sigma)),
+         iter = 2000, warmup = 1000, chains = 4, cores = 4,
+         seed = 5)
+
+# Same as dummy-approach; R just handles the actual dummy-coding in the background
+test3=brm(data = d, 
+         family = gaussian,
+         kcal.per.g_s ~ 1 + clade,
+         prior = c(prior(normal(0, 0.5), class = b),
+                   prior(exponential(1), class = sigma)),
+         iter = 2000, warmup = 1000, chains = 4, cores = 4,
+         seed = 5)
+```
+
+When doing the Index coding approach, you SUPRESS the overall intercept, and calculate the means for each group in a single factor
+
+-   If you use the `y ~ 1 + X1` approach, ***it doesn't matter*** whether the variable is stored as a factor or whether you have multiple indicator variables; the results are the same. The intercept is then calculated across the *whole sample;* one group is chosen as the baseline for comparison (either the level you didn't create a 0/1 indicator for, or the first level of the factor); and all the coefficients are compared against said baseline.
+
+-   When you suppress the intercept with `y ~ 0 + X1`, the intercept is calculated separately for each group of `X1`. This means that each group's intercept is calculated separately, and the estimates are done for each group.
+
+### Index coding
+
+```{r}
+
+# Model with one index variable
+b5.9 <- 
+  brm(data = d, 
+      family = gaussian,
+      kcal.per.g_s ~ 0 + clade,
+      prior = c(prior(normal(0, 0.5), class = b),
+                prior(exponential(1), class = sigma)),
+      iter = 2000, warmup = 1000, chains = 4, cores = 4,
+      seed = 5,
+      file = here::here("fits" ,"b05.09"))
+
+# INCORRECT model with two index variables
+b5.10 <- 
+  brm(data = d, 
+      family = gaussian,
+      kcal.per.g_s ~ 0 + clade + house,
+      prior = c(prior(normal(0, 0.5), class = b),
+                prior(exponential(1), class = sigma)),
+      iter = 2000, warmup = 1000, chains = 4, cores = 4,
+      seed = 5,
+      file = here::here("fits", "b05.10"))
+
+parameters(b5.10, ci_method = "HDI") |> filter(Component=="conditional")
+```
+
+Note that the second model produces wonky output: The first variable, `clade`, has parameters for all four levels. The second variable, though (`house`), only shows three.
+
+McErealth's package uses a more explicit statistical notation syntax formula, while brms uses *design* formula syntax. So you have to change the way you write `brms::brm()` to get the same results as McElreath does when you're including multiple index-coded variables in the same model.
+
+In the first model (`b5.9`), we suppressed the overall intercept for the (only) index variable. When you try this same trick with the second model, it removes the first level of the second index variable.
+
+> The solution is to use the non-linear syntax...Here we'll use it to model our two index variables while excluding an overall or reference-category intercept.
+>
+> In the code below, we defined our two model parameters, `a` and `h`, in the first `bf()` line, connected each to an index variable in the next two lines, and closed out the `bf()` statement with an `nl=TRUE` to alert brms that we are using the non-linear syntax.
+
+```{r}
+b5.11 <- 
+  brm(data = d, 
+      family = gaussian,
+      bf(kcal.per.g_s ~ 0 + a + h, 
+         a ~ 0 + clade, 
+         h ~ 0 + house, 
+         nl = TRUE), # this line is the fix
+      prior = c(prior(normal(0, 0.5), nlpar = a),
+                prior(normal(0, 0.5), nlpar = h),
+                prior(exponential(1), class = sigma)),
+      iter = 2000, warmup = 1000, chains = 4, cores = 4,
+      seed = 5,
+      file = here::here("fits", "b05.11"))
+
+parameters(b5.11, ci_method = "HDI") |> filter(Component=="conditional")
+```
+
+```{r}
+list(Dummy_Coded=x, Index_incorrect=b5.9) |> 
+  map(describe_posterior, ci_method="HDI", ci=.95)
+
+
+```
+
+## Example 2 with lab data
+
+-   DV `plea_sentence_months` is in the `as.double` format
+
+-   IV `poc` is a `factor`
+
+```{r message=FALSE}
+
+pacman::p_load(tidyverse, brms, easystats)
+load(file = here::here("fits", "brms_dummy.RData"))
+load(file = here::here("fits", "brms_index.RData"))
+
+############ BUILD MODELS #############################################
+
+brms_dummy <-brm(formula = plea_sentence_months ~ 1 + poc,
+                   family = gaussian(link = "identity"),
+                   data = practice_data,
+                   prior = c(prior(normal(108, 24), class = Intercept),
+                             prior(lognormal(0, 5), class = sigma), 
+                             prior(normal(0, 10), class = b)), 
+                   iter = 3000, warmup = 750, chains = 4, cores = 4,
+                 fit = here::here("Models", "brms_dummy"))
+
+
+brms_index <-brm(formula = plea_sentence_months ~ 0 + poc,
+                   family = gaussian(link = "identity"),
+                   data = practice_data,
+                   prior = c(prior(lognormal(0, 5), class = sigma), 
+                             prior(normal(50, 24), class = b, coef=poc0.2),
+                             prior(normal(108, 24), class = b, coef=poc0.5),
+                             prior(normal(173, 24), class = b, coef=poc0.8)),
+                   iter = 3000, warmup = 750, chains = 4, cores = 4,
+                 fit = here::here("Models", "brms_index"))
+```
+
+### Dummy model
+
+Beta weights represent correlation coefficients that show change from each factor level (i.e., group) listed to a baseline comparison factor level/group
+
+```{r}
+model_parameters(brms_dummy, ci_method = "HDI", ci=.95)
+```
+
+### Index model
+
+Beta weights are just the mean intercepts (i.e., the means) for each group
+
+```{r}
+model_parameters(brms_index, ci_method = "HDI", ci=.95)
+```
+
+```{r}
+plot(hdi(brms_dummy))
+```
