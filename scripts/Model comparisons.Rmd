@@ -4,13 +4,17 @@ output: html_document
 date: "2023-04-25"
 ---
 
-```{r setup, include=FALSE}
+```{r}
 
 pacman::p_load(tidyverse, brms, easystats, loo)
-options(mc.cores = 10)
+# options(mc.cores = 10)
 
+
+# Load practice models
 load(here::here("models", "models_for_comparisons.RData"))
 
+
+# Load custom function
 loo_compare_tidy=function(...){
   loo::loo_compare(..., criterion = c("loo")) |>
     as_tibble() |> # convert from a matrix to a tidy table
@@ -21,21 +25,14 @@ loo_compare_tidy=function(...){
 
 ## Example from Statistical Rethinking
 
-First add loo and WAIC info to models. Then compare them.
+For newly created models, the first thing to do is compute and add loo and WAIC info.
 
 ```{r}
 
 b5.1 <- add_criterion(b5.1, criterion = c("waic", "loo"))
 b5.2 <- add_criterion(b5.2, criterion = c("waic", "loo"))
 b5.3 <- add_criterion(b5.3, criterion = c("waic", "loo"))
-
-
-# 1. verify that LOOIC and WAIC are in agreement
-performance::compare_performance(b5.1, b5.2, b5.3, metrics=c("LOOIC", "WAIC"))
-  
 ```
-
-As long as they are pretty close you're fine. If they aren't, something is wrong (no idea what).
 
 Now compare WAIC (or LOOIC), and read the following:
 
@@ -116,9 +113,7 @@ Since the difference between the models is not bigger than 4 SE's, there is not 
 
 Given that 5.1 is the simpler model, that's the one we'd pick.
 
-ALTERNATIVELY:
-
-Check to see that the difference between the models' ELPD is at least 2 standard error's below zero.
+**ALTERNATIVELY, Z's textbook also recommended this other approach**: Check to see that the difference between the models' ELPD is at least 2 standard error's below zero.
 
 $$
 -0.87_{diff}+(2*0.35_{se})=0.7
@@ -129,8 +124,6 @@ $$
 $$
 
 Since $-0.17<0$, there is a meaningful difference between the models.
-
-Lets investigate further.
 
 ## Diagnostics: Checking Pareto-K
 
@@ -184,9 +177,9 @@ see::plots(bayesplot::pp_check(b5.1),
            )
 ```
 
-### How does a Bayes factor compare to LOO-CV? (from Vehtari's blog)
+### How does a Bayes factor compare to LOO-CV?
 
-<https://avehtari.github.io/modelselection/CV-FAQ.html#24_What_is_the_relationship_between_LOO-CV_and_Bayes_factor>
+[From Vehtari's blog](https://avehtari.github.io/modelselection/CV-FAQ.html#24_What_is_the_relationship_between_LOO-CV_and_Bayes_factor):
 
 > -   LOO-CV estimates the predictive performance given N−1 observations. Bayes factor can be presented as ratio of predictive performance estimates given 0 observations. Alternatively Bayes factor can be interpreted as choosing the maximum a posterior model.
 >
@@ -199,3 +192,82 @@ see::plots(bayesplot::pp_check(b5.1),
 > -   Computation of Bayes factor is more challenging. For example, if computed from MCMC sample, usually several orders of magnitude bigger sample sizes are needed for Bayes factor than for LOO-CV
 >
 > -   If the models are well specified, regular, and there is a lot of data compared to the number of parameters (n≫p), then Bayes factor may have smaller variance than LOO-CV. If the models are nested, instead of Bayes factor, it is also possible to look directly at the posterior of the interesting parameters (see also 2b in [Using cross-validation for many models](https://avehtari.github.io/modelselection/CV-FAQ.html#manymodels))
+
+A Bayes factor answers the question, ***under which model are the observed data more probable? Which model is more likely to have produced the data?***
+
+Note: The code below is copied from the `bayestestR` website. To view their tutorial in full, see: <https://easystats.github.io/bayestestR/articles/bayes_factors.html#bayesfactor_models>
+
+```{r}
+
+# intercept only model
+m0 <- brm(Sepal.Length ~ 1,
+  data = iris,
+  prior =
+    set_prior("student_t(3, 6, 6)", class = "Intercept") +
+      set_prior("student_t(3, 0, 6)", class = "sigma"),
+  chains = 10, iter = 5000, warmup = 1000,
+  save_pars = save_pars(all = TRUE)
+)
+
+# Petal.Length only
+m1 <- brm(Sepal.Length ~ Petal.Length,
+  data = iris,
+  prior =
+    set_prior("student_t(3, 6, 6)", class = "Intercept") +
+      set_prior("student_t(3, 0, 6)", class = "sigma") +
+      set_prior("normal(0, 1)", coef = "Petal.Length"),
+  chains = 10, iter = 5000, warmup = 1000,
+  save_pars = save_pars(all = TRUE)
+)
+
+# Species only
+m2 <- brm(Sepal.Length ~ Species,
+  data = iris,
+  prior =
+    set_prior("student_t(3, 6, 6)", class = "Intercept") +
+      set_prior("student_t(3, 0, 6)", class = "sigma") +
+      set_prior("normal(0, 3)", coef = c("Speciesversicolor", "Speciesvirginica")),
+  chains = 10, iter = 5000, warmup = 1000,
+  save_pars = save_pars(all = TRUE)
+)
+
+# Species + Petal.Length model
+m3 <- brm(Sepal.Length ~ Species + Petal.Length,
+  data = iris,
+  prior =
+    set_prior("student_t(3, 6, 6)", class = "Intercept") +
+      set_prior("student_t(3, 0, 6)", class = "sigma") +
+      set_prior("normal(0, 1)", coef = "Petal.Length") +
+      set_prior("normal(0, 3)", coef = c("Speciesversicolor", "Speciesvirginica")),
+  chains = 10, iter = 5000, warmup = 1000,
+  save_pars = save_pars(all = TRUE)
+)
+
+# full interactive model
+m4 <- brm(Sepal.Length ~ Species * Petal.Length,
+  data = iris,
+  prior =
+    set_prior("student_t(3, 6, 6)", class = "Intercept") +
+      set_prior("student_t(3, 0, 6)", class = "sigma") +
+      set_prior("normal(0, 1)", coef = "Petal.Length") +
+      set_prior("normal(0, 3)", coef = c("Speciesversicolor", "Speciesvirginica")) +
+      set_prior("normal(0, 2)", coef = c("Speciesversicolor:Petal.Length", "Speciesvirginica:Petal.Length")),
+  chains = 10, iter = 5000, warmup = 1000,
+  save_pars = save_pars(all = TRUE)
+)
+
+
+#### Compute Bayes factors ####
+
+comparison <- bayesfactor_models(m1, m2, m3, m4, denominator = m0)
+comparison
+
+# have easystats do the interpretation for you
+comparison |> 
+  as_tibble() |> 
+  mutate(interpretation=effectsize::interpret_bf(log_BF))
+
+
+```
+
+In addition to the warnings from scholars like Kruschke, Makowski, Vehtari, and others, note that there are basic requirements for building models with Bayes factors: Very good priors, a large sample size, and an ESS of at least 40k.
