@@ -1,0 +1,78 @@
+---
+title: "Reporting"
+output: html_document
+date: "2023-06-20"
+---
+
+## Part 6: Reporting a Bayesian Analysis
+
+## APA Journal Article Reporting Standards (JARS) for Bayes
+
+<https://apastyle.apa.org/jars/quant-table-8.pdf>
+
+**Model**
+
+-   Completely specify both the systematic and the stochastic parts of the analyzed model, and give the rationale for choices of functional forms and distributions.
+
+**Distributions**
+
+-   Describe the prior distribution(s) for model parameters of interest. If the priors are informative, state the rationale for that choice, and conduct a sensitivity analysis to check the dependence of the results on the prior distribution.
+
+-   Describe the posterior distribution(s) for substantive model parameters and important functions of the parameters. If feasible, report the highest posterior density (HPD) interval for each parameter or function.
+
+-   Plot or describe the joint distribution if substantive parameters are correlated.
+
+-   If predictions are made for observable quantities, make available either the actual predictive distribution and parameter estimates, report summary statistics that describe the distribution, or provide a graphical summary.
+
+**Likelihood**
+
+-   Describe the unnormalized or normalized likelihood if the prior distribution is informative.
+
+**Plots**
+
+-   Include the prior distribution, likelihood, and posterior distribution in a single plot (i.e., a triplot) if the prior distribution is informative and plots are to be presented
+
+**Decisions**
+
+-   Report the utilities, or costs and benefits, and explain how they were derived if the data are used for decision making about possible actions. Also provide a sensitivity analysis for various prior distributions or assumptions about utilities for the decision.
+
+**Special Cases**
+
+-   Explain the rationale for assuming exchangeability (or conditional exchangeability if there are covariates) for multilevel analyses. If relevant to the research context, present plots or tables of shrinkage-adjusted estimates and their confidence intervals.
+
+-   Report forest plots or caterpillar plots that include original and shrinkage-corrected estimates of effect sizes for each study with confidence intervals for meta-analytic summaries.
+
+-   If feasible for the analytic method, provide a parameter trace plot where shrinkage-adjusted estimates are shown against the standard deviation of the residual effects, combined with the posterior distribution of the residual variance.
+
+-   Describe the details of all decision rules, if these rules were decided (before or during the study), and the consequences (results) of each decision in adaptive designs.
+
+**Computations**
+
+-   Describe in detail, including the number of chains, the number of burn-in iterations for each chain and thinning if Markov chain Monte Carlo (MCMC) or another sampling procedure is used. Specify the methods used to check for convergence and their results.
+
+**Model Fit**
+
+-   Describe the procedures used to check the fit of the model and the results of those checks.
+
+**Bayes factors**
+
+-   Specify the models being compared if Bayes Factors are calculated.
+
+    -   Report the Bayes Factors and how they were interpreted.
+
+    -   Test the sensitivity of the Bayes Factors to assumptions about prior distributions.
+
+**Bayesian Model Averaging**
+
+-   State the parameter or function of parameters being estimated in Bayesian model averaging. Either plot the distribution or list the mean and standard deviation if it is near normal; otherwise, list a number of percentiles for the distribution if it is not near normal.
+
+-   Describe how the models were generated and, if a reduced set was used for averaging, how the selection was made and which models were used in the averaging.
+
+## Makowski et al's (briefer) recommendations
+
+<https://easystats.github.io/bayestestR/articles/guidelines.html#how-to-describe-and-report-the-parameters-of-a-model>
+
+Based on thesesuggestions, a template sentence for minimal reporting of a parameter based on
+its posterior distribution could be:
+
+> \"the effect of X has a probability of **pd** of being negative (Median = **median**, 89% CI [ **HDI_low** , **HDI_high** ] and can be considered as significant (**ROPE**% in ROPE).\"

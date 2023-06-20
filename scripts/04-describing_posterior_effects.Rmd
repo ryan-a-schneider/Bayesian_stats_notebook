@@ -73,7 +73,7 @@ Also in either case, you are encouraged to interpret the results of the test in 
 
 **Note that extra caution is required as its interpretation highly depends on other parameters such as sample size and ROPE range**. See [this link](https://easystats.github.io/bayestestR/articles/region_of_practical_equivalence.html#sensitivity-to-parameters-scale).
 
-## FUN SURPRISE 
+## FUN SURPRISE
 
 Instead of interpreting the values in `describe_posterior` or some equivalent yourself, you can have easystats do it for you!
 
