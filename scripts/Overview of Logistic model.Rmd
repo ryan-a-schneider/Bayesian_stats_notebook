@@ -5,12 +5,12 @@ date: "2023-06-20"
 ---
 
 ```{r}
-
+pacman::p_load(tidyverse, brms, easystats)
 ```
 
-## Logistic Regression Example
+# Logistic Regression
 
-### Model Overview and Interpretation of Parameters
+## Model Overview and Interpretation of Parameters
 
 The formula for logistic regression is:
 
@@ -20,43 +20,77 @@ $$
 
 When $X_1$ goes up by one unit (on whatever scale it's on), then the $logit(\mu)$ increases by amount $\beta_1$ ; When $X_2$ increases by 1 unit, $logit(\mu)$ increases by $\beta_2$.
 
+The $\beta$ coefficient in logistic regression represents change in log-odds. **Log-odds** are the logarithm of the odds, which transforms their scale to make it linear and symmetrical around 0. Negative log-odds indicate a lower chance of success, while positive log-odds indicate a higher chance of success. *This is a partial correlation; it tells you the direction and strength of the relationship.*
+
+Note that this is very different from **probability**, which is the probability of an event happening, relative to all possible outcomes (i.e., rather than "not-happening").
+
+For example:
+
+-   If 100 people were in one of our study conditions and 60 of them pled guilty, then the odds of pleading guilty are 60:40, or $\frac{6}{4}$ . When divided out, the odds of pleading guilty are 1.5x. In contrast, the probability of pleading guilty would be 60%, or $\frac{60}{100}$
+
+Exponentiating the log-odds gets you the **Odds Ratio.** This is a ratio of two odds, and represents *the change in the odds as you move from one situation or group to another. **These are not symmetrical around 0*** like log-odds are.
+
+***Example***
+
+-   Imagine that Hiliary Clinton's ***probability*** of winning the 2020 election, the outset of the race, was 66%. Naturally, this means she has a 33% probability of losing.
+
+-   This means her ***odds of winning*** are twice as great as losing. This is expressed as: $\frac{2}{1}$
+
+-   Then as the election looms, the models are re-run, and her estimated probability of winning changes to 80%. This would change the odds of winning to $\frac{4}{2}$.
+
+-   This does *not* mean that she now has double the chances of winning! The actual probability of winning increased by 20%, not by a factor of two times. But her overall odds of winning are now double. This is what the Odds Ratio describes:
+
+$$
+\frac{\frac{4}{2}}{\frac{2}{1}}= 2
+$$
+
+If you really wanted to, you can extract probabilities from the logit function to make easier interpretations or predictions:
+
+$$
+probability=\frac{LogOdds}{1+LogOdds}
+$$
+
 See [this link](https://yury-zablotski.netlify.app/post/how-logistic-regression-works/) and [this link](https://stats.oarc.ucla.edu/r/dae/logit-regression/) for help.
 
-Logistic regression uses a linking function to turn a dichotomous variable into a linear one.
+## Confusing! Why!?
 
--   **Odds** are the proportion of an event occuring to the proportion of it not-happening. If 100 people were in one of our study conditions and 60 of them pled guilty, then the odds of pleading guilty are 60:40, or $\frac{6}{4}$ . When divided out, the odds of pleading guilty are 1.5x
+Why not just convert everything to probabilities and not deal with log-odds? Because while probability is using for understanding the probability of a specific event occurring (or not), odds are much more helpful for understanding the relative probabilities of several possible things occurring.
 
--   **Log-odds** are the logarithm of the odds, which transforms their scale to make it linear and symmetrical around 0. Negative log-odds indicate a lower chance of success, while positive log-odds indicate a higher chance of success. **This is the default output for a coefficient in logistic regression.**
+When you want to *compare the relative probability of one thing to another*, odds are much more useful. Odds and log-odds can describe how probabilities change. And it is this increase or decrease in the odds of an event occurring, and the strength of this change in probability, that is of interest (most of the time) in our models.
 
--   An **Odds Ratio** is a ratio of two odds. This tells you the change in odds moving from one group to another, or the change in odds as the IV increases one point. ***These are not symmetrical around 0*** like log-odds are. You can get an Odds Ratio by exponentiating the log odds.
+## Words of Caution
 
--   **Probability** is the ratio of an event happening, compared to all possible outcomes.
+An odds ratio is the effect size for logistic regression. It describes the magnitude of the change in probability...
+
+...but like all other effect sizes, it is descriptive, not an inferential statistic. You must, (1) use and interpret the data to show differences between conditions, and (2) not rely, heuristically, on a specific size for an odds ratio as an indicator of change.
+
+## brms Example
 
 ```{r}
 # make a model
-m <- glm(formula = am ~ mpg, data = mtcars, family = binomial())
+m <- glm(formula = am ~ mpg, data = mtcars, family = "binomial")
 
 # bayesian
 fit_logistic = brm(data = mtcars,
-                   family = binomial,
-                   formula = am | trials(1) ~ mpg,
-                   prior = c(prior(normal(0, 2), class = Intercept),
-                             prior(normal(0, 2), class = b)),
-                   chains = 2, iter = 2000, warmup = 750, seed = 3)
+                   family = bernoulli,
+                   formula = am ~ 1 + mpg,
+                   prior = c(prior(student_t(5, 0, 4), class = Intercept),
+                             prior(student_t(5, 0, 1), class = b)),
+                   chains = 4, iter = 2000, warmup = 750, seed = 3)
 
 # grab results
 parameters(m) |> mutate(Odds_Ratio=exp(2)) |> relocate(Odds_Ratio, .before = 2)
 
-fixedef(fit_logistic)
+parameters(fit_logistic, exponentiate = TRUE, ci=.89, ci_method = "HDI")
 ```
 
--   The coefficient of 0.31 for mpg is interpreted as the **expected change in log odds for a one-unit increase in the IV.**
+-   The coefficient of 0.31 for mpg is interpreted as the **expected change in log odds, for a one-unit increase in the DV.**
 
--   If you turn this into an odds ratio, you get 1.19. *For every 1-point increase in the predictor (MPG), the odds of a car being a manual transmission increase by a factor of 1.19 times*
+-   If you turn this into an odds ratio (by exponentiation), you get 1.19. *For every 1-point increase in the predictor (MPG), the odds of a car being a manual transmission increase by a factor of 1.19 times*
 
 -   (if this was a categorical variable, it would say that the odds are x% higher for group A vs. group B)
 
-#### Bonus: Translating Odds Ratios into (predicted) probability
+#### Translating Odds Ratios into (predicted) probability
 
 You can also compute predicted probabilities to understand the model in a different way. This can be done for both continuous and categorical predictors. Probability can be extracted from log-odds.
 
