@@ -1,0 +1,146 @@
+---
+title: "Untitled"
+output: html_document
+date: '2022-07-15'
+---
+
+## VII. APA Tables & Results Exporting
+
+```{r}
+# Model summary table
+table1=APAtable_Bayesian_LogReg(Thesis_Model)
+
+docx_file <- here::here("Results Output",(fileext = "new table.docx"))
+
+save_as_docx(table1, path = docx_file)
+```
+
+
+## EXTRACTING \_\_\_ FROM THE\_\_\_
+
+### ...draws from the posterior
+
+-   These commands draw samples of *parameter values* from the posterior.
+
+-   Kurz uses `brms::posterior_samples` in his translation books but this is DEPRICATED. Best bet is to use `tidy_draws`; see [here](SEE%20https://mjskay.github.io/tidybayes/articles/tidy-brms.html#introduction) for info. The {tidybayes} package follows the tidyverse format.
+
+```{r}
+insight::get_parameters(b4.3) |> head() # comparable to posterior_samples, except it doesn't give you samples for lp__
+
+tidybayes::tidy_draws(b4.3) |> head() # USE THIS ONE. {tidybayes} is useful for extracting draws in a form and manner consistent w/ the tidyverse.
+```
+
+### ...draws from the PRIOR Predictive Distribution
+
+-   When performing prior predictive checks (below), the following command can be used to extract values from the prior to show what the model expects, *before* seeing the observed data.
+
+```{r}
+brms::prior_draws()
+```
+
+### ...fitted (i.e., predicted) values from the POSTERIOR Predictive Distribution
+
+-   This is a method that uses the posterior to generate data that would be expected by the model. The results of these commands return *the data your model would expect to see,* given the parameters implied in the posterior.
+
+> With `fitted()`, we compute the expected values for each state.
+
+```{r}
+fitted(b5.4) |> as_tibble() |> head()
+```
+
+Kurz extracts the fitted values (values expected by the model) and then binds this back in with the full data
+
+```{r}
+fitted(b5.4) |> data.frame() |> bind_cols(d) |> head()
+```
+
+### Residuals
+```{r}
+residuals(b5.2) |> as_tibble()
+```
+
+
+
+## BAYESIAN PLOTS AND FIGURES
+
+### Bayes factors, ROPE's, posteriors, etc.
+
+<https://easystats.github.io/see/articles/bayestestR.html>
+
+-   The {see} and {bayestestR} packages making plotting Bayesian models very easy. General format for almost everything is the same...
+
+-   To plot just the thing, combine the desired {bayestestR} command with `plot`; for example:
+
+```{r}
+
+# Significance testing with ROPE
+ropetest=rope(Thesis_Model,range = c(-0.181,0.181), ci=0.89, ci_method = "HDI")
+
+result <- equivalence_test(Thesis_Model)
+plot(result)
+
+
+plot(bayestestR::rope(b5.3))
+```
+
+To customize the look and appearance of the plot, use the same format as above, and add ggplot themes or themes and colors from other packages:
+
+```{r}
+
+#HDI visuals
+CIs <- hdi(Thesis_Model, ci = c(0.89))
+plot(CIs) + scale_fill_got_d(option = "white_walkers")
+
+plot(bayestestR::hdi(b5.3)) + 
+  theme_classic()+
+  scale_fill_metro(palette = "ice")
+
+
+#point estimates
+result <- point_estimate(Thesis_Model, centrality = c("map"))
+result
+plot(result, panel = FALSE)[[1]]
+
+
+# Probability of Direction
+plot(pds)+
+  scale_fill_manual(values=c("#FFC107", "#E91E63"))+
+  theme_classic()+
+  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "italic"))
+
+plot(p_direction(model, priors=FALSE))
+
+plot(bayestestR::pd(b5.3)) + 
+  theme_classic()+
+  scale_fill_metro(palette = "ice")
+
+```
+
+### Coefficient estimates
+
+See this page for help: <https://cran.r-project.org/web/packages/bayesplot/vignettes/plotting-mcmc-draws.html>
+
+```{r}
+# Simple quick-and-dirty option
+mcmc_plot(b5.2, pars = "^b_")
+
+
+# fancy version
+
+library(bayesplot)
+
+color_scheme_set("red")
+
+post <- tidybayes::tidy_draws(b5.9)
+
+post %>% 
+  select(starts_with("b_")) %>% 
+  
+  bayesplot::mcmc_intervals(prob = .5, point_est = "median") + # the key plotting feature here
+  
+  labs(title = "My fancy coefficient plot") +
+  theme_bw() +
+  theme(axis.text.y = element_text(hjust = 0),
+        axis.ticks.y = element_blank(),
+        panel.grid = element_blank())
+```

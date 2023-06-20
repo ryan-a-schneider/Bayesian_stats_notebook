@@ -23,6 +23,20 @@ loo_compare_tidy=function(...){
 }
 ```
 
+# Part 3: Comparing Competing Models
+
+There are different methods of model comparison that are possible in the Bayesian framework, and the version to use depends on your model's overall goals/purpose.
+
+-   **Leave-One-Out Cross-Validation (LOO-CV)** is a useful tool for comparing models based on their *ability to predict a new set of unobserved data*. Helps to identify which model is the best out of several competing models at predicting new data, and guard against over-fitting.
+
+-   **Bayes factors** can also be used to compare statistical models. A model comparison using Bayes factors answers the question: *Under which model are the the observed data more probable?* In other words, is an effect supported by the data, and *which model is more likely to have produced the observed data?* Thus, the Bayes factor is a measure of the relative evidence of one of the compared models over the other.
+
+Note that "*many Bayesians*" do not like Bayes factors and warn against their use. In part, because "*even when priors are weak and have little influence on the posterior distributions within models, priors can have a huge impact on comparisons between models*." (McElreath, chapter 7). See also [Kruschke's very good criticisms and warnings of them](https://link.springer.com/article/10.3758/s13423-017-1272-1?wt_mc=Other.Other.8.CON1172.PSBR%20VSI%20Art01%20&%20utm_medium=other%20&%20utm_source=other%20&%20utm_content=2062018%20&%20utm_campaign=8_ago1936_psbr%20vsi%20art01) when used specifically within the context of comparing models that represent the Null and alternative hypotheses; and [Makowski et al.'s](https://www.frontiersin.org/articles/10.3389/fpsyg.2019.02767/full) recommendation for when they are appropriate vs. when they are not.
+
+Further, [Vehtari mentions here that](https://avehtari.github.io/modelselection/CV-FAQ.html#24_What_is_the_relationship_between_LOO-CV_and_Bayes_factor):
+
+> A Bayes factor can be sensible when models are well specified and there is lot of data compared to the number of parameters, so that maximum a posteriori estimate is fine and the result is not sensitive to priors...If there is not a lot of data compared to the number of parameters, Bayes factor can be much more sensitive to prior choice than LOO-CV.
+
 ## Example from Statistical Rethinking
 
 For newly created models, the first thing to do is compute and add loo and WAIC info.
@@ -67,9 +81,7 @@ Now compare WAIC (or LOOIC), and read the following:
 loo_compare_tidy(b5.1, b5.2, b5.3)
 ```
 
-*In the tables above...*
-
-### ELPD
+### Interpreting the above table
 
 `elpd_loo` represents the expected out-of-sample log-predictive density (ELPD) of each model, which is calculated using PSIS-LOO-CV (an approximation of leave-one-out cross-validation). **ELPD quantifies the average log-likelihood of new data points given the model's posterior distribution. In essence, it quantifies how well the model is able to predict new data.** It takes into account both the model's ability to fit the observed data (log-likelihood) and its complexity (penalization for model complexity).
 
@@ -82,8 +94,8 @@ loo_compare_tidy(b5.1, b5.2, b5.3)
 > If elpd difference (`elpd_diff` in loo package) is larger than 4, then compare that difference to standard error of `elpd_diff` (provided e.g. by `loo` package) (Sivula, Magnusson and Vehtari, [2020](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Sivula+etal:2020:loo_uncertainty)). The value for deciding what is small or large can be based on connection to Pseudo-BMA+-weights (Yao *et al.*, [2018](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Yao+etal:2018)) (Vehtari, from link above)
 >
 > ... When the difference (`elpd_diff`) is larger than 4, the number of observations is larger than 100, and the model is not badly misspecified, then normal approximation and SE are quite reliable description of the uncertainty in the difference.
-
-### Information Criterion
+>
+> ### 
 
 `looic` and `elpd_waic` are Info Criterion based the concept of cross-validation. [***They estimate ELPD***](https://avehtari.github.io/modelselection/CV-FAQ.html#21_How_are_LOO_and_WAIC_related)***.*** The model is trained with either point i left out (LOOIC) or several points left out (WAIC); the log-likelihood of the left-out data point is recorded; and the process repeated.
 
@@ -165,17 +177,7 @@ b5.3$criteria$loo$diagnostics$pareto_k[13]
 
 In this case, that value isn't great, but not bad enough (i.e., at or worse than .7) to return a warning message.
 
-## Other stuff
-
-### Qualitative Posterior Predictive Checks
-
-```{r}
-
-see::plots(bayesplot::pp_check(b5.1),
-           bayesplot::pp_check(b5.2),
-           bayesplot::pp_check(b5.3)
-           )
-```
+## Bayes factors
 
 ### How does a Bayes factor compare to LOO-CV?
 
@@ -267,7 +269,17 @@ comparison |>
   as_tibble() |> 
   mutate(interpretation=effectsize::interpret_bf(log_BF))
 
+# can also use my custom function
+legaldmlab::tidy_bf_models(comparison)
 
+
+#### Create a publication-ready table ####
+
+BF_Models_table=legaldmlab::APA_table(BF_Models_table, 
+                                      include_note = "Bayes factors were interpreted according to Jeffrys' criteria")
+
+#### Save output ####
+save_table(flextable_object = BF_Models_table, 
+           file_path = here::here("Figures and Tables"),
+           file_name = "Model_Comparison.docx")
 ```
-
-In addition to the warnings from scholars like Kruschke, Makowski, Vehtari, and others, note that there are basic requirements for building models with Bayes factors: Very good priors, a large sample size, and an ESS of at least 40k.

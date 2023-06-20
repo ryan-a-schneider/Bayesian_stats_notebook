@@ -1,7 +1,7 @@
 ---
-title: "Coding variable tests"
+title: "Untitled"
 output: html_document
-date: '2022-11-20'
+date: '2022-12-18'
 ---
 
 ```{r setup, include=FALSE}
@@ -38,6 +38,11 @@ quick_params=function(model){
 }
 ```
 
+## Map/Workflow guide
+
+Vehtari's guide
+And Fife (2020)
+
 **Definitions:**
 
 An Index variable is one variable that has one level for each category of the factor. A dummy (AKA "Indicator") variable is k-1 variables that are coded 0/1 to indicate the presence or absence of a level.
@@ -48,9 +53,9 @@ Because the difference between two groups is another parameter that you have to 
 
 Dummy and index models are doing very similar things, just from different angles. The dummy-coded model calculates an intercept (i.e., the average starting value) across the whole sample, and then compares the difference from each group to the intercept. In this case, the estimated beta-weights represent the changes/slopes/correlation coefficients. Index models instead calculate a separate intercept (i.e., the mean) for each level/group on its own. In this instance, the beta's represent the means of each group. This let's you compute the differences between two groups easier than the dummy-model.
 
-Therefore, if what you care about is computing the exact difference between two groups and making that contrast comparison, index coding is more useful.
+Therefore, if **what you care about is computing the exact difference between two groups and making that contrast comparison, index coding is more useful.**
 
-## Dummy coding
+### Dummy coding
 
 Use this type of coding when you want to compute a contrast; a difference score between two conditions.
 
@@ -62,7 +67,7 @@ Using the dummy-coded variable `male`, in this model:
 
 This means males are the reference category against which females are being compared; and the coefficient is representing the change-score, the ***contrast*** between their means.
 
-### Note on brms coding
+#### Note on brms coding
 
 KURZ SAYS TO SAVE SEX AS A FACTOR!!!!
 
@@ -151,7 +156,7 @@ When doing the Index coding approach, you SUPRESS the overall intercept, and cal
 
 -   When you suppress the intercept with `y ~ 0 + X1`, the intercept is calculated separately for each group of `X1`. This means that each group's intercept is calculated separately, and the estimates are done for each group.
 
-### Index coding
+#### Index coding
 
 ```{r}
 
@@ -215,7 +220,7 @@ list(Dummy_Coded=x, Index_incorrect=b5.9) |>
 
 ```
 
-## Example 2 with lab data
+### Example 2 with lab data
 
 -   DV `plea_sentence_months` is in the `as.double` format
 
@@ -250,7 +255,7 @@ brms_index <-brm(formula = plea_sentence_months ~ 0 + poc,
                  fit = here::here("Models", "brms_index"))
 ```
 
-### Dummy model
+#### Dummy model
 
 Beta weights represent correlation coefficients that show change from each factor level (i.e., group) listed to a baseline comparison factor level/group
 
@@ -258,7 +263,7 @@ Beta weights represent correlation coefficients that show change from each facto
 model_parameters(brms_dummy, ci_method = "HDI", ci=.95)
 ```
 
-### Index model
+#### Index model
 
 Beta weights are just the mean intercepts (i.e., the means) for each group
 

@@ -147,25 +147,6 @@ rstan_fit=stan_glm(moptim ~ 1 + sex + child + mnegaff,
                     chains=3, iter=4000, cores=3)
 ```
 
-### Monte Carlo Diagnostic checks
-
-```{r}
-# grab diagnostic info for both MCMC models
-diagnostics=list(rstan_model=rstan_fit,
-                 brms_model=brms_fit) |> 
-  map(diagnostic_posterior)
-
-# interpret diagnostic info
-diagnostics |> map_df(select, contains("ESS")) |> map(interpret_ess)
-diagnostics |> map_df(select, contains("Rhat")) |> map(interpret_rhat)
-```
-
-### Model Diagnostic Checks
-
-```{r}
-performance::check_model(brms)
-```
-
 ### Interpreting Regression Coefficients
 
 *Interpretations of unstandardized coefficients and parameters*

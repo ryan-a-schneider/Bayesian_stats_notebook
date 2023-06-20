@@ -1,0 +1,229 @@
+---
+title: "Fit and Diagnose"
+output: html_document
+date: "2023-06-20"
+---
+
+```{r setup, include=FALSE}
+pacman::p_load(tidyverse, brms, easystats)
+```
+
+# Part 2: Fitting and Diagnosing a Bayesian Model
+
+## Preliminary info on brms
+
+Common stuff you should know...
+
+`iter`, `chains`, and `warmup`
+
+-   `iter` is the number of steps taken in each chain. Kurz in chapter 4 notes: "you usually only need to set `iter= 2000, warmup=1000` when using moderately better priors [than these terrible uniform ones]." You usually don't need more than a few thousand steps per chain, if you have a relatively simple model and you're only trying to get estimates of the parameters. **However,** if you're going to use Bayes factors, then you need at least 40,000 posterior samples.
+
+-   `warmup` is how many of the steps specified in `iter` will be used for a "warm-up" run and discarded.
+
+-   You don't need more than 3-4 chains for most models. Running multiple chains helps ensure model stability and accuracy (in terms of the Monte Carlo estimates); but there isn't much benefit to running more than 4 or 5 chains.
+
+-   Monte Carlo chains run serially, and thus can only be run on a single CPU core, so telling BRMS to use all 8 cores (if you have an 8-core CPU) will not grant any speed up in model compilation time...
+
+-   If you're looking to speed up model compile times, you need to run special code that samples in parallel. Or, use the GPU instead of the CPU to compile the code, via the cmdstanr package. Both are very complicated and not worth it for our simple models. *This is only worth it for stuff that takes hours or days to compile.*
+
+***Variables and coding***
+
+-   *You do not have to do anything special to dummy-code a model, just leave it as is. If you do not include the* `1` *in the formula, it's there invisible by default*
+
+-   If you want to index code, you need to manually surpress the intercept by switching the `1` to `0`. If you have multiple variables, you need to use the last version that includes the command `nl=TRUE`
+
+-   In either case, store your factors as `as.factor` to make things simple (but I don't think this matters)
+
+-   For more info, see the "Coding variables" script
+
+## How to Fit a Model with brms
+
+-   Note that `coef= x` does not have to be specified. It's only necessary if you do not want to apply the same prior to every effect in the model (which would be done by simply leaving it `class = b`)
+-   If using Bayes factors, multiply \`iter\` x10 so you have 50-60k steps needed instead of 5-6k. Bayes factors need a very large ESS per parameter
+-   Also if using Bayes factors, make sure each model has `diagnostic_file = file.path(tempdir(), "df.csv")` (if using rstanarm) or `save_pars = save_pars(all = TRUE)` (if using brms), and remember to change the name of each `df` file when you copy-paste that line from one model to the next!
+
+```{r}
+##### Basic linear model example ####
+brms_fit <-brm(moptim ~ sex,
+               family = gaussian(link = "identity"),
+               data = survey,                
+               prior = c(
+                 prior(normal(3, 2), class = Intercept), # expected mean and dev. of DV, on the scale of the DV's unit
+                 prior(normal(0, 3), class= sigma), 
+                 prior(normal(0, 3), class = b, coef= sexMALES),
+               iter = 28000, warmup = 27000, chains = 3, cores = 3, seed = 4))
+
+
+##### Basic logistic models #######
+
+fit <-
+  brm(data = my_data, 
+      family = bernoulli, # only works with NON-aggregated data
+      y ~ 1 + x1 + x2,
+      prior = c(prior(normal(0, 2), class = Intercept),
+                prior(normal(0, 2), class = b)))
+
+fit <-
+  brm(data = my_data, 
+      family = binomial, # works with both aggregated and non-agg data
+      y | trials(1) ~ 1 + x1 + x2,
+      prior = c(prior(normal(0, 2), class = Intercept),
+                prior(normal(0, 2), class = b)))
+
+```
+
+***Some quick notes on the logistic fits:***
+
+-   For the logistic models, the `family=binomial` version will only work with a DV that is stored as a `double` or `integer` type variable; it does not work with dichotomous `factor` variables. If you have a factor, use the Bernoulli version.
+
+-   If you have aggregated data, you must use the latter version that models data on the `binomial` distribution (which makes intuitive sense, given that the Bernoulli distribution is for modeling only a single binomial event)
+
+### How to "update" An Existing Model Fit
+
+Rather than use the above code to "fit" several models that have slight differences between them, you can sometimes fit one model, and then update it with the following code. This may allow you to get around having to re-compile the code for the model before sampling, which dramatically reduces the computation time.
+
+```{r}
+
+# create a new model by updating an initial one, by adding the intercept parameter back in
+m2 <-update(brms_index, newdata = practice_data,
+                           formula. = ~ .+1,
+                           prior = c(prior(normal(3, 2), class = Intercept)))
+
+# update again to create a third model with more predictors
+m3 <-update(brms_dummy_single, newdata = practice_data,
+                          formula. = ~ .-poc + poc_5 + poc_8)
+```
+
+## Creating an Test Model (i.e., Prior Predictive Checking)
+
+The first thing you need to do is pick a sensible prior. See [this page by the Stan development team](https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations) for suggestions on default, weakly-informative priors.
+
+The code for this model will be identical to your final model, except for one thing: add `sample_prior="only"`
+
+```{r}
+b5.1 <- 
+  brm(data = d, 
+      family = gaussian,
+      d ~ 1 + a,
+      prior = c(prior(normal(0, 0.2), class = Intercept),
+                prior(normal(0, 0.5), class = b),
+                prior(exponential(1), class = sigma)),
+      iter = 2000, warmup = 1000, chains = 4, cores = 4,
+      seed = 5,
+      sample_prior = "only",
+      file = "../fits/b05.01")
+```
+
+Then extract draws from the prior using the command noted above and plot
+
+```{r}
+
+#### Kurz's method in his translation of Statistical Rethinking ####
+
+some_draws=brms::prior_draws(b5.1)
+
+some_draws %>% 
+  slice_sample(n = 50) %>% 
+  rownames_to_column("draw") %>% 
+  expand(nesting(draw, Intercept, b),
+         a = c(-2, 2)) %>% 
+  mutate(d = Intercept + b * a) %>% 
+  
+  ggplot(aes(x = a, y = d)) +
+  geom_line(aes(group = draw),
+            color = "firebrick", alpha = .4) +
+  labs(x = "Median age marriage (std)",
+       y = "Divorce rate (std)") +
+  coord_cartesian(ylim = c(-2, 2)) +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+
+
+#### Default plots to do this super fast and easy ####
+plot(b5.1)
+```
+
+## Model Diagnostics
+
+### A. Monte Carlo Diagnostics
+
+After you've built your final model, check to see the chains converged.
+
+Estimated Sample Size (ESS) and Rhat are two MCMC diagnostic indicators for MCMC/HMC models invented and used by Vehtari, Gelman, and the like. Good indicators to check, and easy to do so with the easystats suite.
+
+-   Rhat should be \<1.1
+
+-   ESS should be \> 1000
+
+```{r}
+ # extract info from model
+diag=bayestestR::diagnostic_posterior(b5.3)
+
+# check Rhat
+diag$Rhat |> effectsize::interpret_rhat()
+
+# check ESS
+diag$ESS |> effectsize::interpret_ess()
+```
+
+### B. POSTERIOR Predictive Check
+
+Posterior predictive checks Checks compare the observed data to replicated data from your model. If the model is a good fit and lines up with the replicated data, you should be able to generalize the model to new data sets. [Fife (2020)](https://journals.sagepub.com/doi/pdf/10.1177/1745691620917333?casa_token=Topmd-Kl6MEAAAAA:_wlfSAHi4G0EshY0ISz4DSQyMZkyxzzFZYxZzQfitVqSs4z2ILAyjlWEYSC8ZIG9qeRO-tXbBQvuHw) recommends checking a visual plot of the model's predictions as one of the first things you should do in data analysis (step 4, p. 1602).
+
+This is an important step for every model, even if you're only build the one. ***If you're building multiple models and trying to compare competing theories, this step should be incorporated into model selection....***
+
+> "Model building and model choice in the frequentest domain are based primarily on choosing the model that best fits the data. In the Bayesian domain, the choice among a set of competing models is based on which model provides the best posterior predictions. That is, the choice among a set of competing models should be based on which model will best predict what actually happens." p. 98
+
+> In order to check your model and compare models, you need to do Posterior Predictive Checks. "The general idea behind posterior predictive checking is that there should be little, if any, discrepancy between data generated by the model and the actual data itself. In essence, posterior predictive checking is a method for assessing the specification quality of the model. Any deviation between the data generated from the model and the actual data implies model misspecification." p.99
+
+There are many, many ways of doing this. Here's one method, done by Kurz, in his translation of *Statistical Rethinking* that plots a regression line on the data. First extract the values predicted by the model with `fitted()`, as noted above; then combine this with the data and pipe to ggplot
+
+```{r}
+brms_fit <-brm(price ~ 1 + carat,
+               family = gaussian(link = "identity"),
+               data = diamonds,                
+               prior = c(
+                 prior(normal(3, 2), class = Intercept),
+                 prior(normal(0, 3), class= sigma), 
+                 prior(normal(0, 3), class = b)), 
+               iter = 28000, warmup = 27000, chains = 3, cores = 3, seed = 4)
+
+
+fitted(brms_fit) %>% # extract fitted predictions
+  data.frame() %>% # convert from matrix to df
+  bind_cols(diamonds) %>% # combine this with the original data
+  #...and pass to ggplot
+  
+  ggplot(aes(x = price, y = Estimate)) + # change x-axis to DV name!
+  geom_abline(linetype = 2, color = "grey50", size = .5) +
+  geom_point(size = 1.5, color = "firebrick4", alpha = 3/4) +
+  geom_linerange(aes(ymin = Q2.5, ymax = Q97.5),
+                 size = 1/4, color = "firebrick4") +
+  #geom_text(data = . %>% filter(Loc %in% c("ID", "UT", "RI", "ME")),
+  #         aes(label = Loc), hjust = 1, nudge_x = - 0.25) +
+  labs(x = "Observed", y = "Predicted") +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+```
+
+Alternatively, you can plot and compare the predicted posterior densities via any of the following:
+
+```{r}
+performance::posterior_predictive_check(brms_fit)
+performance::check_posterior_predictions(brms_fit)
+pp_check(brms_fit)
+```
+
+Note that the first two commands are basically identical. This is because they merely act as a easy-to-remember wrapper functions that send your model to `pp_check`.
+
+Note that the above is mainly for *linear* regression. For logistic models, see [advice from Vehtari](https://discourse.mc-stan.org/t/posterior-predictive-check-for-binomial-regression/7203/4).
+
+### C. Model-Specific Assumption Checks
+
+You can check basically all major model requirements/assumptions for a linear model at once with the following:
+
+```{r}
+performance::check_model(b5.2)
+```
+
+Note that this command also works with frequentest models made with base R's `lm()` function.

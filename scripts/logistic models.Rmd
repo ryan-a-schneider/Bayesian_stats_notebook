@@ -1,8 +1,16 @@
-```{r setup, include=FALSE}
-legaldmlab::primeR(analysis_type = "Bayes")
+---
+title: "Untitled"
+output: html_document
+date: "2023-06-20"
+---
+
+```{r}
+
 ```
 
-## The Logistic Model
+## Logistic Regression Example
+
+### Model Overview and Interpretation of Parameters
 
 The formula for logistic regression is:
 
@@ -14,8 +22,6 @@ When $X_1$ goes up by one unit (on whatever scale it's on), then the $logit(\mu)
 
 See [this link](https://yury-zablotski.netlify.app/post/how-logistic-regression-works/) and [this link](https://stats.oarc.ucla.edu/r/dae/logit-regression/) for help.
 
-### Terminology and key concepts
-
 Logistic regression uses a linking function to turn a dichotomous variable into a linear one.
 
 -   **Odds** are the proportion of an event occuring to the proportion of it not-happening. If 100 people were in one of our study conditions and 60 of them pled guilty, then the odds of pleading guilty are 60:40, or $\frac{6}{4}$ . When divided out, the odds of pleading guilty are 1.5x
@@ -26,14 +32,22 @@ Logistic regression uses a linking function to turn a dichotomous variable into 
 
 -   **Probability** is the ratio of an event happening, compared to all possible outcomes.
 
-### Example model
-
 ```{r}
 # make a model
 m <- glm(formula = am ~ mpg, data = mtcars, family = binomial())
 
+# bayesian
+fit_logistic = brm(data = mtcars,
+                   family = binomial,
+                   formula = am | trials(1) ~ mpg,
+                   prior = c(prior(normal(0, 2), class = Intercept),
+                             prior(normal(0, 2), class = b)),
+                   chains = 2, iter = 2000, warmup = 750, seed = 3)
+
 # grab results
 parameters(m) |> mutate(Odds_Ratio=exp(2)) |> relocate(Odds_Ratio, .before = 2)
+
+fixedef(fit_logistic)
 ```
 
 -   The coefficient of 0.31 for mpg is interpreted as the **expected change in log odds for a one-unit increase in the IV.**
@@ -42,7 +56,7 @@ parameters(m) |> mutate(Odds_Ratio=exp(2)) |> relocate(Odds_Ratio, .before = 2)
 
 -   (if this was a categorical variable, it would say that the odds are x% higher for group A vs. group B)
 
-### Translating Odds Ratios into (predicted) probability
+#### Bonus: Translating Odds Ratios into (predicted) probability
 
 You can also compute predicted probabilities to understand the model in a different way. This can be done for both continuous and categorical predictors. Probability can be extracted from log-odds.
 
@@ -76,56 +90,3 @@ mtcars |> slice(19) |> select(mpg, log_odds, am, preds_prob)
 ```
 
 A car with an MPG rating of 30 has a 93% probability of being a manual transmission
-
-## Creating a Bayesian model with brms
-
-SEE HERE: <https://bookdown.org/ajkurz/DBDA_recoded/dichotomous-predicted-variable.html>
-
-Generic code for logistic regression using a ***Bernoulli*** distribution. Kurz: ***This syntax presumes the predictor variables have already been standardized.***
-
-*HOW TO STANDARDIZE a variable*
-
-```{r}
-my_data <-
-  my_data %>% 
-  mutate(height_z = (height - mean(height)) / sd(height),
-         weight_z = (weight - mean(weight)) / sd(weight))
-```
-
-## Example from Kruschke's DBDA
-
-```{r}
-
-my_data=read.csv("C:/Users/rschn/OneDrive/R Sandbox/Data Repository/Kruschke data/HtWtData110.csv")
-
-my_data <-
-  my_data %>% 
-  mutate(height_z = (height - mean(height)) / sd(height),
-         weight_z = (weight - mean(weight)) / sd(weight))
-
-head(my_data)
-
-# model with just weight
-fit1 <-
-  brm(data = my_data, 
-      family = bernoulli,
-      male ~ 1 + weight_z,
-      prior = c(prior(normal(0, 2), class = Intercept),
-                prior(normal(0, 2), class = b)),
-      iter = 2500, warmup = 500, chains = 4, cores = 4,
-      seed = 21)
-
-# model with height and weight
-fit2 <-
-  brm(data = my_data, 
-      family = bernoulli,
-      male ~ 1 + weight_z + height_z,
-      prior = c(prior(normal(0, 2), class = Intercept),
-                prior(normal(0, 2), class = b)),
-      iter = 2500, warmup = 500, chains = 4, cores = 4,
-      seed = 21)
-
-# frequentest model for reference
-ref_model_1=glm(male ~ 1 + weight_z, data = my_data, family = "binomial")
-ref_model_2=glm(male ~ 1 + weight_z + height_z, data = my_data, family = "binomial")
-```
