@@ -143,7 +143,7 @@ some_draws %>%
 plot(b5.1)
 ```
 
-## Model Diagnostics
+## Diagnostic Checks (for the Final Model)
 
 ### A. Monte Carlo Diagnostics
 
@@ -227,3 +227,127 @@ performance::check_model(b5.2)
 ```
 
 Note that this command also works with frequentest models made with base R's `lm()` function.
+
+Descriptions of all major assumptions (for linear regression) follow forthwith. (See *R for Psychology,* section 15.9, page 488 in the pdf).
+
+#### Homogeneity
+
+This is a test of the assumption that the variances of the independent groups' distributions on a continuous variable are **similar, equal, or roughly equal.** If the variances in the groups are different their distributions are different, which makes them incomparable. If you violate this assumption you need to do something to fix it before moving forward. Usually you'd use Lavene's Test
+
+> Strictly speaking, the regression model assumes that each residual is generated from a normal distribution with mean 0, and (more importantly for the current purposes) with a standard deviation σ that is the same for every single residual. In practice, it's impossible to test the assumption that every residual is identically distributed. Instead, what we care about is that the standard deviation of the residual is the same for all values of Yˆ , and (if we're being especially paranoid) all values of every predictor X in the model (R for psychology)
+
+```{r}
+plot(model_1, 3) # horizontal line with equally spread points is a good indication
+
+performance::check_homogeneity(model_2)
+```
+
+#### Linearity of Residuals
+
+> A pretty fundamental assumption of the linear regression model is that relationship between X and Y actually be linear! Regardless of whether it's a simple regression or a multiple regression, we assume that the relatiships involved are linear. (R for Psychology, p. 474)
+
+```{r}
+plot(model_1, 1) # horizontal line with equally spread points is a good indication
+```
+
+#### Residuals are Normally Distributed
+
+In multiple regression, the assumption of normality applies only to the residuals, *not* the independent variables. "Simply put, the residuals are the error in the relationship between the independent variables and the dependent variable in a regression model. These should be normally distributed.
+
+> Like half the models in statistics, standard linear regression relies on an assumption of normality. Specifically, it assumes that the residuals are normally distributed. It's actually okay if the predictors X and the outcome Y are non-normal, so long as the residuals  are normal. See Section (R for psychology)
+
+##### ***Visual Checks***
+
+Visual graphs of residuals show if the variables are following a path that would be expected, if your data was normally distributed. Only looking for visual evidence of "extreme" problems.
+
+You can use two different types of graphs to check this:
+
+-   Histogram/density function
+
+-   A PP-plot or QQ-plot. PP-plots show the expected cumulative probability for a z-distribution by the observed cumulative probability; QQ plots show the same thing but with quantiles.
+
+##### ***Significance test checks***
+
+The *Kolmogorov-Smirnov Test* or the *Shapiro-Walk test* both work here. Both basically compare data with a normal distribution that has the same M and SD. A p \< .05 means that distribution of variable is significantly different from normal. This will likely be significant with large sample, so it should be combined with a visual check!!!
+
+Note that this test almost always yields significant results for the distribution of residulas; visual inspection (QQ-plots) are preferable!!!!!
+
+```{r}
+#### Visual checks ####
+qplot(model_1$residuals) #residuals histogram. Should have a normal distribution
+  
+plot(model_1, 2) # Q-Q plot. Residuals should follow the dashed line, which would indicate even prediction error across the model. If the shape is anything other than a straight line it indicates possible miss-specification or non-linear relationships between variables
+
+#### Statistical test checks ####
+check_normality(model_1) # Shapiro-Wilks test. 
+broom::tidy(shapiro.test(model_1$residuals))
+```
+
+##### ***Fixing non-normal data (normal linear models).*** Consider the following from the Kline textbook:
+
+> "Some variables are expected to have non-normal distributions, such as reports of alcohol or drug use and certain personality characteristics. If so, then transofmring an inherently non-normal variable to force a normal distribution may fundamentally alter it. In this case, it would be better to use a different estimation method for continuous outcomes in SEM, one that does not assume normality, such as robust maximum likelihood." (p. 77)
+
+> "Normalizing transformations may be more useful when there is no expectation of normlaity, or metrics of outcome variables are arbitrarty." (p. 77)
+
+In other words, consider the information contained on the scale and how it would be changed/what would be lost before you transform it.
+
+#### Heteroscadasticity: Non-constant Error Variance
+
+AKA "heteroscedasticity", or inequality of error variances.
+
+> The linear regression algorithm assumes that there is a linear relationship between the parameters of independent variables and the dependent variable Y. If the true relationship is not linear, we cannot use the model as the accuracy will be significantly reduced. ([link](https://towardsdatascience.com/linear-regression-assumptions-why-is-it-important-af28438a44a1))
+
+"Residual" is the difference between the predicted score and actual score. The amount of miss-prediction, in other words, that your model is making. You want this error rate *to be constant along the values of the DV*. If the error rate is not constant, it means the model is predicting better in some areas than in others, which is problematic.It's really problematic if the model only works for some people or in some ranges and not others.
+
+Two ways to do this:
+
+-   Check the normality of the residuals (*these should be normally distributed*)
+
+-   Check the plot of the (standardized) residuals against predicted scores (*should be evenly distributed and scattered*)
+
+If you have problems with this you can add or remove some variables, transform the data, or switch to a weighted least squares model.
+
+```{r}
+#### Visual check ####
+plot(model_2, 1) # want to see a horizontal line, without distinct patterns
+
+#### Significance test ####
+performance::check_heteroscedasticity(model_2) #You want to see a non-significant result; significance implies assumption violation
+
+ncvTest(model_2)
+```
+
+#### Multicolinearity
+
+If your variables aren't really adding unique variance and there's tons of overlap, that will cause prediction issues. It is important to check multicolinearity to verify that your predictors are adding unique variance prediction to the model. Extreme collinearity can occur when what appear to be separate variables are actually measure the same thing.
+
+> This is really just a "catch all" assumption, to the effect that "there's nothing else funny going on in the residuals". If there is something weird (e.g., the residuals all depend heavily on some other unmeasured variable) going on, it might screw things up. (R for psychology)
+
+*Methods to detect collinearity among three or more continuous variables:* You have three different options to do this...
+
+1.  Calculate 𝑅\^2 between each variable and all the rest. High values (e.g., \> .90) suggest extreme multivariate collinearity
+
+2.  Check **Tolerance**: calculated as $1-R^2$. Values less than .10 may indicate extreme multivariate collinearity
+
+3.  Check the **Variance inflation factor (VIF)**: calculated as 1/(1 − 𝑅\^2). Values greater than 10.0 may suggest redundancy in observed variables
+
+Note that VIF and Tolerance are almost the same; VIF is just a transformation of the other. Just pick one of the three above and report.
+
+```{r}
+performance::check_collinearity(model_2)
+```
+
+Example write up: Tests to check the assumption of collinearity indicated that correlation between the predictors was not an issue (Sex, *VIF*= 1.00; Child, *VIF*=1.00; Mean Negative Affect, *VIF*=1.01).
+
+#### Autocorrelation
+
+Including interaction terms in regression models tends to make the autocorrelation shoot through the roof (because these terms are a bit redundant). So you should check this.
+
+Anything between 1 and 2 is ok. Usually anything less than 5 is good, but some people go up to 10.
+
+```{r}
+
+# run checks
+car::durbinWatsonTest(model_3)
+performance::check_autocorrelation(model_3) # easystats version
+```
