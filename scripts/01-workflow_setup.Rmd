@@ -38,10 +38,13 @@ quick_params=function(model){
 }
 ```
 
-## Map/Workflow guide
+# Part 1: Establishing a Workflow; Coding Variables
 
-Vehtari's guide
-And Fife (2020)
+## A. Map/Workflow guide
+
+Vehtari's guide And Fife (2020)
+
+## B. Coding Variables
 
 **Definitions:**
 
@@ -57,17 +60,13 @@ Therefore, if **what you care about is computing the exact difference between tw
 
 ### Dummy coding
 
-Use this type of coding when you want to compute a contrast; a difference score between two conditions.
-
 Using the dummy-coded variable `male`, in this model:
 
 -   $\alpha$ would be the intercept (i.e., the mean) for ***males only***
 
 -   and $\beta_1$ would be the ***expected change in the mean for females***, relative to males.
 
-This means males are the reference category against which females are being compared; and the coefficient is representing the change-score, the ***contrast*** between their means.
-
-#### Note on brms coding
+This means males are the reference category against which females are being compared; and the coefficient is representing the change-score between their means.
 
 KURZ SAYS TO SAVE SEX AS A FACTOR!!!!
 
@@ -156,7 +155,7 @@ When doing the Index coding approach, you SUPRESS the overall intercept, and cal
 
 -   When you suppress the intercept with `y ~ 0 + X1`, the intercept is calculated separately for each group of `X1`. This means that each group's intercept is calculated separately, and the estimates are done for each group.
 
-#### Index coding
+### Index coding
 
 ```{r}
 

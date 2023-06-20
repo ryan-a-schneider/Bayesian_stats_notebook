@@ -293,10 +293,6 @@ b5.1 <-
       file = here::here("fits", "b05.01"))
 ```
 
-## Model checking
+## Model Assumptions
 
-### Posterior Predictive Distribution
-
-Before you consider your results, check the Posterior Predictive Distribution. This distribution shows what the model is predicting future, unobserved data to look like.
-
-Under this distribution, you should see (A) all plausible values/no nonsensical predictions, and (B) predicted data that looks similar to your observed sample.
+x
