@@ -12,7 +12,7 @@ pacman::p_load(tidyverse, brms, easystats)
 
 ## Preliminary info on brms
 
-Common stuff you should know...
+Stuff to know about...
 
 `iter`, `chains`, and `warmup`
 
@@ -26,15 +26,7 @@ Common stuff you should know...
 
 -   If you're looking to speed up model compile times, you need to run special code that samples in parallel. Or, use the GPU instead of the CPU to compile the code, via the cmdstanr package. Both are very complicated and not worth it for our simple models. *This is only worth it for stuff that takes hours or days to compile.*
 
-***Variables and coding***
-
--   *You do not have to do anything special to dummy-code a model, just leave it as is. If you do not include the* `1` *in the formula, it's there invisible by default*
-
--   If you want to index code, you need to manually surpress the intercept by switching the `1` to `0`. If you have multiple variables, you need to use the last version that includes the command `nl=TRUE`
-
--   In either case, store your factors as `as.factor` to make things simple (but I don't think this matters)
-
--   For more info, see the "Coding variables" script
+-   Sometimes you'll hear about "burn in" in discussions on MCMC, and what an appropriate rate is for the sampler. That does not apply to brms or rstanarm. Also, it is not the same thing as warm-up steps. Ignore it for now.
 
 ## How to Fit a Model with brms
 
@@ -94,6 +86,14 @@ m3 <-update(brms_dummy_single, newdata = practice_data,
                           formula. = ~ .-poc + poc_5 + poc_8)
 ```
 
+## Check Variables
+
+-   If you plan to put an interaction term into your model, or anything that is squared, cubed, etc., this dramatically increases collinearity and thus may make your model violate assumptions. So **mean-center any continuous variables you are putting in the model's interaction term**
+
+-   Consider standardizing variables, especially for variables with drastically different scales (e.g., IQ vs. a 7-point Likert scale). Makes it easier to think about change in one causing a change on the other if they're both in Standard Deviation units.
+
+    -   Can be accomplished with either `parameters::standardized_parameters(x, method = "refit")` or `parameters::model_parameters(model, standardize = "x", method = "refit")`
+
 ## Creating an Test Model (i.e., Prior Predictive Checking)
 
 The first thing you need to do is pick a sensible prior. See [this page by the Stan development team](https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations) for suggestions on default, weakly-informative priors.
@@ -151,9 +151,7 @@ After you've built your final model, check to see the chains converged.
 
 Estimated Sample Size (ESS) and Rhat are two MCMC diagnostic indicators for MCMC/HMC models invented and used by Vehtari, Gelman, and the like. Good indicators to check, and easy to do so with the easystats suite.
 
--   Rhat should be \<1.1
-
--   ESS should be \> 1000
+Rhat should be \<1.1, and ESS should be \> 1000.
 
 ```{r}
  # extract info from model
@@ -254,7 +252,7 @@ plot(model_1, 1) # horizontal line with equally spread points is a good indicati
 
 In multiple regression, the assumption of normality applies only to the residuals, *not* the independent variables. "Simply put, the residuals are the error in the relationship between the independent variables and the dependent variable in a regression model. These should be normally distributed.
 
-> Like half the models in statistics, standard linear regression relies on an assumption of normality. Specifically, it assumes that the residuals are normally distributed. It's actually okay if the predictors X and the outcome Y are non-normal, so long as the residuals  are normal. See Section (R for psychology)
+> Like half the models in statistics, standard linear regression relies on an assumption of normality. Specifically, it assumes that the residuals are normally distributed. It's actually okay if the predictors X and the outcome Y are non-normal, so long as the residuals are normal. See Section (R for psychology)
 
 ##### ***Visual Checks***
 
@@ -283,17 +281,7 @@ check_normality(model_1) # Shapiro-Wilks test.
 broom::tidy(shapiro.test(model_1$residuals))
 ```
 
-##### ***Fixing non-normal data (normal linear models).*** Consider the following from the Kline textbook:
-
-> "Some variables are expected to have non-normal distributions, such as reports of alcohol or drug use and certain personality characteristics. If so, then transofmring an inherently non-normal variable to force a normal distribution may fundamentally alter it. In this case, it would be better to use a different estimation method for continuous outcomes in SEM, one that does not assume normality, such as robust maximum likelihood." (p. 77)
-
-> "Normalizing transformations may be more useful when there is no expectation of normlaity, or metrics of outcome variables are arbitrarty." (p. 77)
-
-In other words, consider the information contained on the scale and how it would be changed/what would be lost before you transform it.
-
 #### Heteroscadasticity: Non-constant Error Variance
-
-AKA "heteroscedasticity", or inequality of error variances.
 
 > The linear regression algorithm assumes that there is a linear relationship between the parameters of independent variables and the dependent variable Y. If the true relationship is not linear, we cannot use the model as the accuracy will be significantly reduced. ([link](https://towardsdatascience.com/linear-regression-assumptions-why-is-it-important-af28438a44a1))
 
@@ -323,7 +311,7 @@ If your variables aren't really adding unique variance and there's tons of overl
 
 > This is really just a "catch all" assumption, to the effect that "there's nothing else funny going on in the residuals". If there is something weird (e.g., the residuals all depend heavily on some other unmeasured variable) going on, it might screw things up. (R for psychology)
 
-*Methods to detect collinearity among three or more continuous variables:* You have three different options to do this...
+You have three different options to do this...
 
 1.  Calculate 𝑅\^2 between each variable and all the rest. High values (e.g., \> .90) suggest extreme multivariate collinearity
 
@@ -337,7 +325,9 @@ Note that VIF and Tolerance are almost the same; VIF is just a transformation of
 performance::check_collinearity(model_2)
 ```
 
-Example write up: Tests to check the assumption of collinearity indicated that correlation between the predictors was not an issue (Sex, *VIF*= 1.00; Child, *VIF*=1.00; Mean Negative Affect, *VIF*=1.01).
+Example write up:
+
+> Tests to check the assumption of collinearity indicated that correlation between the predictors was not an issue (Sex, *VIF*= 1.00; Child, *VIF*=1.00; Mean Negative Affect, *VIF*=1.01).
 
 #### Autocorrelation
 

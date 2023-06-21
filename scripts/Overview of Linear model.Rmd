@@ -13,14 +13,7 @@ reference_model=lm(moptim~sex + child + mnegaff, data=survey)
 ## Simple linear regression
 
 ```{r}
-library(rethinking)
-data(Howell1)
-d <- Howell1
 
-rm(Howell1)
-detach(package:rethinking, unload = T)
-
-tibble::as_tibble(d)
 ```
 
 We're moving away from simple estimation now. Bayesian estimation is when you just use the likelihood and the prior to arrive at a posterior that ranks the plausability of the parameter values for the data. We want more than that now....
@@ -135,16 +128,6 @@ brms_fit <-brm(moptim ~ 1 + sex + child + mnegaff,
                  prior(normal(0, 3), class = b, coef= childYES),
                  prior(normal(0, 3), class = b, coef= mnegaff)), # expected variation of individuals from Intercept's prior
                iter = 28000, warmup = 27000, chains = 3, cores = 3, seed = 4)
-
-
-rstan_fit=stan_glm(moptim ~ 1 + sex + child + mnegaff, 
-                    family= gaussian(link = "identity"), data= survey, 
-                    prior = student_t(3,location=c(0,0,0), scale=c(3,3,3), autoscale = FALSE),
-                    #prior_intercept = normal(), 
-                    algorithm = c("sampling"), 
-                    mean_PPD = TRUE,
-                    adapt_delta = 0.95, 
-                    chains=3, iter=4000, cores=3)
 ```
 
 ### Interpreting Regression Coefficients
