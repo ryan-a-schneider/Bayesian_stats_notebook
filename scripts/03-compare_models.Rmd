@@ -76,6 +76,12 @@ Now compare WAIC (or LOOIC), and read the following:
 >
 > Nested CV helps to estimate the overfitting due to the selection but doesn't remove that. The overfitting is more severe depending on how many degrees of freedom there are in the selection. For example, in predictor selection we can think that we as many indicator variables as there are predictors and then there are combinatorial explosion in possible parameter combinations and overfitting can be severe (as demonstrated by Piironen and Vehtari ([2017](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Piironen+Vehtari:2017a))).
 
+This picture may also help explain ELPD
+
+```{r}
+knitr::include_graphics(here::here("images", "elpd.png"))
+```
+
 ```{r}
 
 loo_compare_tidy(b5.1, b5.2, b5.3)
