@@ -7,29 +7,31 @@ date: "2023-04-25"
 ```{r}
 
 pacman::p_load(tidyverse, brms, easystats, loo)
-# options(mc.cores = 10)
-
-
-# Load practice models
-load(here::here("models", "models_for_comparisons.RData"))
+options(mc.cores = parallel::detectCores(logical = FALSE)-1)
 
 
 # Load custom function
 loo_compare_tidy=function(...){
   loo::loo_compare(..., criterion = c("loo")) |>
-    as_tibble() |> # convert from a matrix to a tidy table
+    data.frame() |> 
     rownames_to_column(var = "model") |> 
+    as_tibble() |> 
     mutate(across(c(2:9), round, 2)) # round columns 2-9 to 2 decimals
 }
+
+# Read in practice models from McElreath ch. 7
+b6.6=readRDS(file= here::here("fits", "b06.06.rds"))
+b6.7=readRDS(file= here::here("fits", "b06.07.rds"))
+b6.8=readRDS(file= here::here("fits", "b06.08.rds"))
 ```
 
 # Part 3: Comparing Competing Models
 
 There are different methods of model comparison that are possible in the Bayesian framework, and the version to use depends on your model's overall goals/purpose.
 
--   **Leave-One-Out Cross-Validation (LOO-CV)** is a useful tool for comparing models based on their *ability to predict a new set of unobserved data*. Helps to identify which model is the best out of several competing models at predicting new data, and guard against over-fitting.
+-   Comparing models based on their *ability to predict a new set of unobserved data*, and for guarding against over-fitting (via Cross-Validation and/or Information Criteria). CV and IC are two **distinct, yet very similar performing**, ways to estimate model performance with new data.
 
--   **Bayes factors** can also be used to compare statistical models. A model comparison using Bayes factors answers the question: *Under which model are the the observed data more probable?* In other words, is an effect supported by the data, and *which model is more likely to have produced the observed data?* Thus, the Bayes factor is a measure of the relative evidence of one of the compared models over the other.
+-   **Bayes factors** can also be used to compare statistical models by answering the question: *Under which model are the the observed data more probable?* In other words, is an effect supported by the data, and *which model is more likely to have produced the observed data?* Thus, the Bayes factor is a measure of the relative evidence of one of the compared models over the other.
 
 Note that "*many Bayesians*" do not like Bayes factors and warn against their use. In part, because "*even when priors are weak and have little influence on the posterior distributions within models, priors can have a huge impact on comparisons between models*." (McElreath, chapter 7). See also [Kruschke's very good criticisms and warnings of them](https://link.springer.com/article/10.3758/s13423-017-1272-1?wt_mc=Other.Other.8.CON1172.PSBR%20VSI%20Art01%20&%20utm_medium=other%20&%20utm_source=other%20&%20utm_content=2062018%20&%20utm_campaign=8_ago1936_psbr%20vsi%20art01) when used specifically within the context of comparing models that represent the Null and alternative hypotheses; and [Makowski et al.'s](https://www.frontiersin.org/articles/10.3389/fpsyg.2019.02767/full) recommendation for when they are appropriate vs. when they are not.
 
@@ -39,13 +41,13 @@ Further, [Vehtari mentions here that](https://avehtari.github.io/modelselection/
 
 ## Example from Statistical Rethinking
 
-For newly created models, the first thing to do is compute and add loo and WAIC info.
+For newly created models, the first thing to do is compute and add loo and WAIC info to the model object.
 
 ```{r}
 
-b5.1 <- add_criterion(b5.1, criterion = c("waic", "loo"))
-b5.2 <- add_criterion(b5.2, criterion = c("waic", "loo"))
-b5.3 <- add_criterion(b5.3, criterion = c("waic", "loo"))
+b6.6 <- add_criterion(b6.6, criterion = c("waic", "loo"))
+b6.7 <- add_criterion(b6.7, criterion = c("waic", "loo"))
+b6.8 <- add_criterion(b6.8, criterion = c("waic", "loo"))
 ```
 
 Now compare WAIC (or LOOIC), and read the following:
@@ -84,40 +86,69 @@ knitr::include_graphics(here::here("images", "elpd.png"))
 
 ```{r}
 
-loo_compare_tidy(b5.1, b5.2, b5.3)
+loo_estimates=loo_compare_tidy(b6.6, b6.7, b6.8)
+loo_estimates
 ```
 
-### Interpreting the above table
+### Expected Log-Predictive Density (ELPD) and LOO-CV
 
-`elpd_loo` represents the expected out-of-sample log-predictive density (ELPD) of each model, which is calculated using PSIS-LOO-CV (an approximation of leave-one-out cross-validation). **ELPD quantifies the average log-likelihood of new data points given the model's posterior distribution. In essence, it quantifies how well the model is able to predict new data.** It takes into account both the model's ability to fit the observed data (log-likelihood) and its complexity (penalization for model complexity).
+[Recommendation from Stan team](https://discourse.mc-stan.org/t/understanding-looic/13409/4) is to look at ELPD, not LOOIC, when examining model predictions/quality.
+
+`elpd_loo` is a point estimate that represents the expected out-of-sample performance of a model, which is calculated using PSIS-LOO-CV (an approximation of leave-one-out cross-validation). **ELPD quantifies the average log-likelihood of new data points given the model's posterior distribution (i.e., it quantifies how well the model is able to predict new data).** It takes into account both the model's ability to fit the observed data (log-likelihood) and its complexity (penalization for model complexity).
 
 -   The larger the ELPD, the better the model is at predicting new, unobserved data. (Note that these values only have meaning *relative to other ELPD's, however; you can't interpret them on their own.*)
 
-`elpd_diff` shows the difference between models' ELPD; it's a direct comparison of their estimated out-of-sample prediction capabilities. **This is the column you're interested in.** `elpd_se` is the standard error associated with this estimate. "[As quick rule:](https://avehtari.github.io/modelselection/CV-FAQ.html#12_What_is_the_interpretation_of_ELPD__elpd_loo__elpd_diff)"
+However, the difference between models' ELPD is a difference score that requires a separate estimation from computing just the raw model ELPD (similar to how you need to compute contrasts in order to compare estimated means). So you want to compare models based on `elpd_diff`. `elpd_diff` shows the difference between models' ELPD; it's a direct comparison of their estimated out-of-sample prediction capabilities. `elpd_se` is the standard error associated with this estimate, which shows how reliable this estimate is.
+
+"[As quick rule:](https://avehtari.github.io/modelselection/CV-FAQ.html#12_What_is_the_interpretation_of_ELPD__elpd_loo__elpd_diff)"
 
 > If elpd difference (`elpd_diff` in `loo` package) is less than 4, the difference is small [and the models have "very similar predictive performance"] (Sivula, Magnusson and Vehtari, [2020](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Sivula+etal:2020:loo_uncertainty)).
 >
-> If elpd difference (`elpd_diff` in loo package) is larger than 4, then compare that difference to standard error of `elpd_diff` (provided e.g. by `loo` package) (Sivula, Magnusson and Vehtari, [2020](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Sivula+etal:2020:loo_uncertainty)). The value for deciding what is small or large can be based on connection to Pseudo-BMA+-weights (Yao *et al.*, [2018](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Yao+etal:2018)) (Vehtari, from link above)
+> If elpd difference is larger than 4, then compare that difference to standard error of `elpd_diff`...When the difference (`elpd_diff`) is larger than 4, the number of observations is larger than 100, and the model is not badly misspecified, then normal approximation and SE are quite reliable description of the uncertainty in the difference.
+
+`p_loo` is the effective number of parameters in the model. It is a penalty term applied to each model that represents model complexity. Per Vehtari:
+
+> It is not needed for elpd_loo, but has diagnostic value. It describes how much more difficult it is to predict future data than the observed data. Asymptotically under certain regularity conditions, p_loo can be interpreted as the effective number of parameters.
 >
-> ... When the difference (`elpd_diff`) is larger than 4, the number of observations is larger than 100, and the model is not badly misspecified, then normal approximation and SE are quite reliable description of the uncertainty in the difference.
+> p_loo \>N or p_loo \>p indicates that the model has very weak predictive capability. This can happen even in case of well specified model (as demonstrated in Figure 1 in Vehtari, Gelman and Gabry (2017)), but may also indicate a severe model misspecification.
 >
-> ### 
+> See more in "Interpreting p_loo when Pareto-k\^ is large" in LOO Glossary.
 
-`looic` and `elpd_waic` are Info Criterion based the concept of cross-validation. [***They estimate ELPD***](https://avehtari.github.io/modelselection/CV-FAQ.html#21_How_are_LOO_and_WAIC_related)***.*** The model is trained with either point i left out (LOOIC) or several points left out (WAIC); the log-likelihood of the left-out data point is recorded; and the process repeated.
+### Information Criteria
 
--   They should produce very similar results and be very close in their estimates, even though they are computed differently and handle model complexity differently. *Lower values indicate better performance.*
+`looic` and `elpd_waic` are Info Criterion based the concept of cross-validation. [They both estimate ELPD](https://avehtari.github.io/modelselection/CV-FAQ.html#21_How_are_LOO_and_WAIC_related)***.*** The model is trained with either point i left out (LOOIC) or several points left out at once (WAIC); the log-likelihood of the left-out data is recorded; and the process repeated *k* times.
 
--   However, note the following from [Vehtari's blog](Vehtari,%20Gelman%20and%20Gabry%20(2017)%20show%20that%20PSIS-LOO%20has%20usually%20smaller%20error%20in%20estimating%20ELPD%20than%20WAIC.%20The%20exception%20is%20the%20case%20when%20p_loo%20≪N,%20as%20then%20WAIC%20tends%20to%20have%20slightly%20smaller%20error,%20but%20in%20that%20case%20both%20PSIS-LOO%20and%20WAIC%20have%20very%20small%20error%20and%20it%20doesn’t%20matter%20which%20computational%20approximation%20is%20used.%20On%20the%20other%20hand,%20for%20flexible%20models%20WAIC%20fails%20more%20easily,%20has%20significant%20bias%20and%20is%20less%20easy%20to%20diagnose%20for%20failures.%20WAIC%20has%20been%20included%20in%20loo%20package%20only%20for%20comparison%20purposes%20and%20to%20make%20it%20easy%20to%20replicate%20the%20results%20in%20Vehtari,%20Gelman%20and%20Gabry%20(2017).), that **suggests you should probably prefer LOOIC to WAIC: "**Vehtari, Gelman and Gabry ([2017](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Vehtari+etal:PSIS-LOO:2017)) show that PSIS-LOO has usually smaller error in estimating ELPD than WAIC. The exception is the case when p_loo ≪N, as then WAIC tends to have slightly smaller error, but in that case both PSIS-LOO and WAIC have very small error and it doesn't matter which computational approximation is used. On the other hand, for flexible models WAIC fails more easily, has significant bias and is less easy to diagnose for failures. WAIC has been included in `loo` package only for comparison purposes and to make it easy to replicate the results in Vehtari, Gelman and Gabry ([2017](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Vehtari+etal:PSIS-LOO:2017))
+-   LOOIC is based on LOO, where WAIC is a different calculation/approach entirely.
 
-`p_loo` is the effective number of parameters in the model. It is a penalty term applied to each model that represents model complexity. Per [Vehtari](https://avehtari.github.io/modelselection/CV-FAQ.html#19_What_is_the_interpretation_of_p_loo):
+-   WAIC and LOOIC should produce very similar results and be very close in their estimates, even though they are computed differently and handle model complexity differently. Contrary to ELPD above, *lower values indicate better performance.*
 
-> It is not needed for `elpd_loo`, but has diagnostic value. It describes how much more difficult it is to predict future data than the observed data. Asymptotically under certain regularity conditions, `p_loo` can be interpreted as the effective number of parameters.
->
-> `p_loo` \>N or `p_loo` \>p indicates that the model has very weak predictive capability. This can happen even in case of well specified model (as demonstrated in Figure 1 in Vehtari, Gelman and Gabry ([2017](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Vehtari+etal:PSIS-LOO:2017))), but may also indicate a severe model misspecification.
->
-> See more in "Interpreting p_loo when Pareto-k\^ is large" in [LOO Glossary](https://mc-stan.org/loo/reference/loo-glossary.html).
+-   However, note the following from [Vehtari's blog](Vehtari,%20Gelman%20and%20Gabry%20(2017)%20show%20that%20PSIS-LOO%20has%20usually%20smaller%20error%20in%20estimating%20ELPD%20than%20WAIC.%20The%20exception%20is%20the%20case%20when%20p_loo%20≪N,%20as%20then%20WAIC%20tends%20to%20have%20slightly%20smaller%20error,%20but%20in%20that%20case%20both%20PSIS-LOO%20and%20WAIC%20have%20very%20small%20error%20and%20it%20doesn’t%20matter%20which%20computational%20approximation%20is%20used.%20On%20the%20other%20hand,%20for%20flexible%20models%20WAIC%20fails%20more%20easily,%20has%20significant%20bias%20and%20is%20less%20easy%20to%20diagnose%20for%20failures.%20WAIC%20has%20been%20included%20in%20loo%20package%20only%20for%20comparison%20purposes%20and%20to%20make%20it%20easy%20to%20replicate%20the%20results%20in%20Vehtari,%20Gelman%20and%20Gabry%20(2017).), that **suggests you should probably prefer LOOIC to WAIC:**
+
+> **"**Vehtari, Gelman and Gabry ([2017](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Vehtari+etal:PSIS-LOO:2017)) show that PSIS-LOO has usually smaller error in estimating ELPD than WAIC. The exception is the case when p_loo ≪N, as then WAIC tends to have slightly smaller error, but in that case both PSIS-LOO and WAIC have very small error and it doesn't matter which computational approximation is used. On the other hand, for flexible models WAIC fails more easily, has significant bias and is less easy to diagnose for failures. WAIC has been included in `loo` package only for comparison purposes and to make it easy to replicate the results in Vehtari, Gelman and Gabry ([2017](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Vehtari+etal:PSIS-LOO:2017))
 
 Comparing 5.3 to 5.1:
+
+```{r}
+loo_estimates |> slice(1:2) |> select(1:3)
+```
+
+Since the estimated difference between the model's ELPD is small, the models can be said to have comparable predictive performance.
+
+However, if we compare 5.1 to b5.2...
+
+```{r}
+loo_estimates |> slice(1,3) |> select(1:3)
+```
+
+That is a large difference between the models (`elpd_diff`\> 4), so now we check the SE estimate for that difference. [Per Vehtari](https://discourse.mc-stan.org/t/understanding-looic/13409/6), you want to see that $ELPD_{diff} > 4 * SE_{diff}$
+
+```{r}
+loo_estimates |> mutate(diff_check=ifelse(elpd_diff>(abs(2*se_diff)), "Big", "Not big"))
+```
+
+**BUT REMEMBER:** Just because a model with an extra predictor is making better predictions, that does not imply that model is a better causal or theoretical model. It just means it has something in it that's associated with the outcome and "*if you select a model based only on expected predictive accuracy, you could easily be confounded."* Do not automatically discard a model out of hand because it has worse performance; consider the relationships between variables and different possible causal models, and the potential for confounds or spurious relationships that may affect the models.
+
+Alsoconsider also that "*...in the natural and social sciences the models under consideration are almost never the data-generating models. It makes little sense to attempt to identify a 'true' model."* (McElreath, chapter 7).
 
 $$
 0.35_{se}*4=1.4
