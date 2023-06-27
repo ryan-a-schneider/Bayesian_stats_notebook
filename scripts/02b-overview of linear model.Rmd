@@ -1,0 +1,203 @@
+```{r setup, include=FALSE}
+
+pacman::p_load(tidyverse, brms, easystats)
+```
+
+# The Linear Model
+
+## Underlying Logic
+
+Bayesian linear regression helps you to understand the *relationship between the outcome and the predictors.* This requires making a new mathematical formula that maps out the relationship between our outcome and the things we think will predict it.
+
+It essentially turns the mean of the Normal distribution, $\mu$, into a linear function of the predictor variables you're interested in. Of course, this is predicted on the assumption that the relationship of the predictors and the outcome variable is indeed **constant and additive.**
+
+This helps you to map out predicted means for given values of your predictors. The following linear function is used to accomplish this:
+
+$$
+\mu_i=\alpha + \beta(X_i-\overline{X})
+$$
+
+Again, in English, this translates to: Each mean, $\mu_i$, is a function of $\alpha$ (the intercept, a constant) and $\beta$ (the slope; i.e., the rate at which the observed-variable X changes the mean).
+
+But remember...each individual $\mu_i$ that this function generates is the center of *the specific distribution that* $X_i$ *is thought to come from.*
+
+In sum: The intercept gives you a starting point, and the correlation gives you the direction and strength of the relationship between the starting point and each data point $X_i$ in the sample. Combined, you can use these two pieces of info to map out the likely **average** value.
+
+> The golem then computes the posterior distribution of this constant relationship.
+>
+> The mean $\mu$ is no longer a parameter to be estimated. Rather...$\mu_i$ is constructed from other parameters, $\alpha$ and $\beta$, and the observed variable x. This is not a stochastic relationship [i.e., one that is randomly distributed]...
+
+-   Alpha and Beta "we made up"; they allow the data to vary systematically....When you want to know something about your data, you ask your golem by inventing a parameter for it.
+
+-   BETA IS THE SLOPE. IT ASNWERS THE QUESTION, "WHAT IS THE CHANGE IN EXPECTED HIEGHT, WHEN (predictor X1) CHANGES BY 1 UNIT?
+
+-   ALPHA IS THE CONSTANT, THE Y-INTERCEPT. IT TELLS YOU WHAT THE EXPECTED HEIGHT IS WHEN $x_i=xbar$
+
+-   The parameters stand for the strength of relationship between $\mu$ and some other variable. The posterior ranks each of the infinite possible combinations of parameter values by their logical plausibility, given the observed data.
+
+**For example:** Imagine an example where we have weights of 50 people and we want to predict their height from these weights.
+
+-   The height data, $h$, we assume is normally distributed like so: $h_i{\sim}N(\mu_i,\sigma)$. This would be the likelihood function that describes the data; *each individual height* comes from **a distribution with some mean** and some variance.
+
+## Specifying Model Components
+
+When building a Bayesian linear model, you have to specify each component in the above formula. There are three parameters that need priors: $\alpha$, $\beta$, and $\sigma$.
+
+Consider a model where we want to predict height from weight. (McElreath chapter 4). In this case, we first describe how our **data** is distributed, and how it came to be so, via the **likelihood function**: $h_i {\sim} Normal (\mu, \sigma)$
+
+Now we specify the parameters we need in order to build the linear function/model below.
+
+```{r}
+b4.3 <- 
+  brm(data = d2, 
+      family = gaussian,
+      height ~ 1 + weight_c,
+      prior = c(prior(normal(178, 20), class = Intercept), # expected avg value of whole sample on the DV
+                prior(lognormal(0, 1), class = b),
+                prior(uniform(0, 50), class = sigma)),
+      iter = 28000, warmup = 27000, chains = 4, cores = 4,
+      seed = 4,
+      file = "../fits/b04.03")
+```
+
+#### Alpha's prior
+
+-   $\alpha$ represents the expected starting point for your DV with no other information in the model. Therefore, **this prior should be set to your expected value for the DV, on average, taking no information into account;** or in short, just the expected average of the DV across the whole sample.
+
+-   *Example (continuous)*: In a model of height where the average height of individuals is expected to be 178cm, and whole sample means should be within 40cm ($\pm2$ SD's; 1 SD= 20cm) of this mean of means, the prior would be: $\alpha {\sim} Normal(178, 20)$
+
+-   *Example (categorical):* For categorical variables, you're only considering the average height of the baseline comparison group...
+
+#### Beta
+
+-   $\beta$ is the slope that describes the rate of change for the included variable/effect; i.e., the correlations/regression coefficients. These are the slopes that answer the question, "***what is the change expected in the DV**, when variable X changes by 1 unit?".*
+
+-   So you pick a starting value and standard deviation around said value that represent the change you expect to see.
+
+-   Priors for beta coefficients, if doing a traditional significance test, should always be centered on zero to allow the possibility of a zero difference or null relation with the DV. Their scale should be reasonable.
+
+#### *Prior for sigma (*$\sigma$)
+
+-   While the sigma value in the intercept prior describes the variability of whole groups about the mean, this prior for $\sigma$ describes the variability of individuals about the mean. This value is necessary to include in the model because by definition, a normally distributed variable has a mean and some variation about the mean. Thus, the posterior is a joint distribution $Pr(\mu,\sigma)$ .
+
+-   Ultimately, however, since this is a "nuisance" parameter we don't care about, this parameter will be integrated out, and the final posterior we interpret will be a marginal posterior that describes uncertainty in $\mu$ accounting for all possible values of $\sigma$
+
+-   Example: In the same model of height above, ***individuals*** are expected to be within 100cm of the center/average value (1 SD= 50cm). The prior would be:$$\sigma {\sim} uniform(0,50)$$
+
+-   *Setting in brms:* `Class = sigma` is for the sigma parameter, describing the spread of individual deviations from the mean.
+
+## Multiple Regression
+
+### Strategy and idea for multiple regression
+
+1.  Nominate the **predictors** you want in the linear model of the mean
+2.  For each predictor, make a (slope) parameter that will measure its conditional association with the outcome
+3.  Multiply the (slope) parameter by the variable and add that term into the linear model
+
+### Understanding the model and its parts
+
+Considering an example from McElreath Ch. 5: Predicting divorce rates. We will be building a model that predicts divorce rate ($D$) from *Median age at time of marriage* (parameter $A$) and State Rate of Marriage, $M$.
+
+A linear model posits our data, $D_i$, is a linear function of parameters $\alpha$ (some constant) and $A$. Thus, our full linear model is:
+
+$$\mu_i=\alpha+\beta_AA_i$$
+
+The linear model is the function that tells us *how the value of the DV is related to the values of the IV's.* In this context it means...
+
+> The expected outcome for any state with marriage rate $M_i$ and a median age-at-marriage of $A_i$ is the sum of three independent terms (the intercept, the slope, and the individual values of the variable itself).
+
+It's also important to understand what each part of the model itself represents:
+
+-   The *likelihood function* is the function that generated your data. It's the hypothetical "DGP", or "data-generating process."
+
+-   The *intercept* is the average expected value for the DV (i.e., your observed data) when all other variables are held at zero/before you enter any variables into the model.
+
+-   The *slopes/beta weights* represent the **rate** of change between variable X and observed data Y. As you increase on one, what happens to the other.
+
+Thus, another way to read the above is: "The means..."
+
+Now lets load the data.
+
+```{r}
+data(WaffleDivorce, package = "rethinking")
+d <- WaffleDivorce
+
+d <-
+  d %>% 
+  mutate(d = rethinking::standardize(Divorce),
+         m = rethinking::standardize(Marriage),
+         a = rethinking::standardize(MedianAgeMarriage))
+
+head(d)
+```
+
+### Specifying Model Components
+
+#### Likelihood
+
+Our observed data (i.e., our Dependent Variable) is *Divorce Rate of State.* We'll call this $D_i$. We think that this variable came from a normal distribution, so our likelihood function will be:
+
+$$
+D_i {\sim}Normal(\mu, \sigma)
+$$
+
+#### Prior for the intercept
+
+> Since the outcome and the predictor are both standardized, the intercept $\alpha$ should end up very close to zero.
+
+So our prior for the intercept is going to be...
+
+$$
+\alpha {\sim}Normal(0,0.2)
+$$
+
+This is pretty strict. But it makes sense.
+
+#### Prior for slopes
+
+***Median Age at Marriage*** ($A$)
+
+Since this variable is also standardized, if the standard deviation on our slope parameter for our predictor, $\beta_A$, is 0.5, that means that a change in 1 SD change in marriage is associated with a 1 SD change in divorce. How strong is this? Does this make sense? Check the data to see how big 1 SD is for $A$
+
+```{r}
+sd(d$MedianAgeMarriage)
+```
+
+Turns out it's 1.2. So...
+
+> a change of 1.2 years in median age at marriage is associated with a full standard deviation change in the outcome variable.
+>
+> [Going up or down just barely over a year in age of marriage will swing the value of the DV a full standard deviation as well]
+>
+> That seems like an insanely strong relationship. The prior above thinks that only 5% of plausible slopes are more extreme than 1.
+
+...but we're going to stick with it for the moment and model it like this anyway to see what it looks like. Final prior for parameter $A$'s slope is...
+
+$$\beta_A {\sim} Normal(0,0.5)$$
+
+***Rate of Marriage*** ($M$)
+
+info here
+
+#### Prior for sigma
+
+-   Finally, prior for $\sigma$ is $\sigma {\sim}Exponential(1)$, which restricts it to positive values (since you can't have a negative variance/SD).
+
+### Make the model go
+
+Regression model go brrrrrr
+
+```{r}
+
+b5.1 <- 
+  brm(data = d, 
+      family = gaussian,
+      d ~ 1 + a,
+      prior = c(prior(normal(0, 0.2), class = Intercept),
+                prior(normal(0, 0.5), class = b),
+                prior(exponential(1), class = sigma)),
+      iter = 2000, warmup = 1000, chains = 4, cores = 4,
+      seed = 5,
+      sample_prior = T,
+      file = here::here("fits", "b05.01"))
+```
