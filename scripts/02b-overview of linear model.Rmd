@@ -7,7 +7,15 @@ pacman::p_load(tidyverse, brms, easystats)
 
 ## Underlying Logic
 
-Bayesian linear regression helps you to understand the *relationship between the outcome and the predictors.* This requires making a new mathematical formula that maps out the relationship between our outcome and the things we think will predict it.
+Regardless of the distribution that generated your data, if you're interested in a process that generates data with deviations from a center point, you can probably model it with a normal distribution. The DGP itself does not have to be normal...but if you have enough samples, you can arrive at a normal distribution anyway. The deviations from center over time become normal.
+
+The big change for this chapter vs. previous ones is that we are moving from **estimating** a single parameter model to **predicting** values of a variable that is defined by multiple parameters (e.g., height, which is defined by mean and standard deviation).
+
+The big picture is that if you want to estimate such a variable, you cannot just collapse it down to a single number: You need to estimate both mu and sigma....even though we only care about estimating the center, mu.
+
+So what do we do? Turn the parameter of interest, the mean, into a function of the other parameters. You can then use the relationship between the other parameters to predict where the mean will be, as the other variables change.
+
+In a model that predicts height for example, your estimates are weighted averages over all possible values of sigma.
 
 It essentially turns the mean of the Normal distribution, $\mu$, into a linear function of the predictor variables you're interested in. Of course, this is predicted on the assumption that the relationship of the predictors and the outcome variable is indeed **constant and additive.**
 
