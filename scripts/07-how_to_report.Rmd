@@ -6,7 +6,11 @@ date: "2023-06-20"
 
 ## Part 6: Reporting a Bayesian Analysis
 
-## APA Journal Article Reporting Standards (JARS) for Bayes
+## Option A: Bayesian Analysis Reporting Guidelines (BARG; Kruschke, 2021)
+
+From: <https://www.nature.com/articles/s41562-021-01177-7>
+
+## Option B: APA's Journal Article Reporting Standards (JARS) for Bayes
 
 <https://apastyle.apa.org/jars/quant-table-8.pdf>
 
@@ -68,11 +72,12 @@ date: "2023-06-20"
 
 -   Describe how the models were generated and, if a reduced set was used for averaging, how the selection was made and which models were used in the averaging.
 
-## Makowski et al's (briefer) recommendations
+## Option C: Makowski et al's (briefer) recommendations
+
+SEXIT: Sequential Existence and Significance Testing
 
 <https://easystats.github.io/bayestestR/articles/guidelines.html#how-to-describe-and-report-the-parameters-of-a-model>
 
-Based on thesesuggestions, a template sentence for minimal reporting of a parameter based on
-its posterior distribution could be:
+Based on these suggestions, a template sentence for minimal reporting of a parameter based on its posterior distribution could be:
 
-> \"the effect of X has a probability of **pd** of being negative (Median = **median**, 89% CI [ **HDI_low** , **HDI_high** ] and can be considered as significant (**ROPE**% in ROPE).\"
+> "the effect of X has a probability of **pd** of being negative (Median = **median**, 89% CI [ **HDI_low** , **HDI_high** ] and can be considered as significant (**ROPE**% in ROPE)."

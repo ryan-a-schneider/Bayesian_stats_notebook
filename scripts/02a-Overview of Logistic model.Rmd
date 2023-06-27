@@ -6,6 +6,7 @@ date: "2023-06-20"
 
 ```{r}
 pacman::p_load(tidyverse, brms, easystats)
+options(mc.cores = parallel::detectCores(logical = FALSE)-1)
 ```
 
 # Logistic Regression
@@ -52,13 +53,13 @@ $$
 
 See [this link](https://yury-zablotski.netlify.app/post/how-logistic-regression-works/) and [this link](https://stats.oarc.ucla.edu/r/dae/logit-regression/) for help.
 
-## Confusing! Why!?
+### Confusing! Why!?
 
-Why not just convert everything to probabilities and not deal with log-odds? Because while probability is using for understanding the probability of a specific event occurring (or not), odds are much more helpful for understanding the relative probabilities of several possible things occurring.
+Why not just convert everything to probabilities and not deal with log-odds? Because while probability is using for understanding the probability of a specific event occurring (or not), odds are much more helpful for understanding the relative probabilities of several possible things occurring...
 
-When you want to *compare the relative probability of one thing to another*, odds are much more useful. Odds and log-odds can describe how probabilities change. And it is this increase or decrease in the odds of an event occurring, and the strength of this change in probability, that is of interest (most of the time) in our models.
+When you want to *compare the relative probability of one thing to another*, odds are much more useful. Odds and log-odds can describe how probabilities change; and it is this increase or decrease in the odds of an event occurring, and the strength of this change in probability, that is of interest (most of the time) in our models.
 
-## Words of Caution
+### Words of Caution
 
 An odds ratio is the effect size for logistic regression. It describes the magnitude of the change in probability...
 

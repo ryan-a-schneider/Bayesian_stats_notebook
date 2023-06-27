@@ -4,7 +4,7 @@ output: html_document
 date: "2023-04-25"
 ---
 
-```{r}
+```{r setup}
 
 pacman::p_load(tidyverse, brms, easystats, loo)
 options(mc.cores = parallel::detectCores(logical = FALSE)-1)
@@ -29,7 +29,7 @@ b6.8=readRDS(file= here::here("fits", "b06.08.rds"))
 
 There are different methods of model comparison that are possible in the Bayesian framework, and the version to use depends on your model's overall goals/purpose.
 
--   Comparing models based on their *ability to predict a new set of unobserved data*, and for guarding against over-fitting (via Cross-Validation and/or Information Criteria). CV and IC are two **distinct, yet very similar performing**, ways to estimate model performance with new data.
+-   Comparing models based on their *ability to predict a new set of unobserved data*, and for guarding against over-fitting (via Cross-Validation and/or Information Criteria). CV and IC are two **distinct, yet very similar performing** ways to estimate model performance with new data.
 
 -   **Bayes factors** can also be used to compare statistical models by answering the question: *Under which model are the the observed data more probable?* In other words, is an effect supported by the data, and *which model is more likely to have produced the observed data?* Thus, the Bayes factor is a measure of the relative evidence of one of the compared models over the other.
 
@@ -49,8 +49,6 @@ b6.6 <- add_criterion(b6.6, criterion = c("waic", "loo"))
 b6.7 <- add_criterion(b6.7, criterion = c("waic", "loo"))
 b6.8 <- add_criterion(b6.8, criterion = c("waic", "loo"))
 ```
-
-Now compare WAIC (or LOOIC), and read the following:
 
 <https://avehtari.github.io/modelselection/CV-FAQ.html#5_How_to_use_cross-validation_for_model_selection>
 
@@ -72,11 +70,11 @@ Now compare WAIC (or LOOIC), and read the following:
 >
 > If there is a large number of models compared, there is possibility of overfitting in model selection. See video [Model assessment, comparison and selection at Master class in Bayesian statistics, CIRM, Marseille](https://www.youtube.com/watch?v=Re-2yVd0Mqk).
 >
-> Vehtari and Ojanen ([2012](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Vehtari+Ojanen:2012)) write: "The model selection induced bias can be taken into account by the double/nested/2-deep cross-validation (e.g. Stone, 1974; Jonathan, Krzanowski and McCarthy, 2000) or making an additional bias correction (Tibshirani and Tibshirani, 2009)."
+> -   Vehtari and Ojanen ([2012](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Vehtari+Ojanen:2012)) write: "The model selection induced bias can be taken into account by the double/nested/2-deep cross-validation (e.g. Stone, 1974; Jonathan, Krzanowski and McCarthy, 2000) or making an additional bias correction (Tibshirani and Tibshirani, 2009)."
 >
-> Piironen and Vehtari ([2017](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Piironen+Vehtari:2017a)) write: "Although LOO-CV and WAIC can be used to obtain a nearly unbiased estimate of the predictive ability of a given model, both of these estimates contain a stochastic error term whose variance can be substantial when the dataset is not very large. This variance in the estimate may lead to over-fitting in the selection process causing nonoptimal model selection and inducing bias in the performance estimate for the selected model (e.g., Ambroise and McLachlan 2002; Reunanen 2003; Cawley and Talbot 2010). The overfitting in the selection may be negligible if only a few models are being compared but, as we will demonstrate, may become a problem for a larger number of candidate models, such as in variable selection."
+> -   Piironen and Vehtari ([2017](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Piironen+Vehtari:2017a)) write: "Although LOO-CV and WAIC can be used to obtain a nearly unbiased estimate of the predictive ability of a given model, both of these estimates contain a stochastic error term whose variance can be substantial when the dataset is not very large. This variance in the estimate may lead to over-fitting in the selection process causing nonoptimal model selection and inducing bias in the performance estimate for the selected model (e.g., Ambroise and McLachlan 2002; Reunanen 2003; Cawley and Talbot 2010). The overfitting in the selection may be negligible if only a few models are being compared but, as we will demonstrate, may become a problem for a larger number of candidate models, such as in variable selection."
 >
-> Nested CV helps to estimate the overfitting due to the selection but doesn't remove that. The overfitting is more severe depending on how many degrees of freedom there are in the selection. For example, in predictor selection we can think that we as many indicator variables as there are predictors and then there are combinatorial explosion in possible parameter combinations and overfitting can be severe (as demonstrated by Piironen and Vehtari ([2017](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Piironen+Vehtari:2017a))).
+> -   Nested CV helps to estimate the overfitting due to the selection but doesn't remove that. The overfitting is more severe depending on how many degrees of freedom there are in the selection. For example, in predictor selection we can think that we as many indicator variables as there are predictors and then there are combinatorial explosion in possible parameter combinations and overfitting can be severe (as demonstrated by Piironen and Vehtari ([2017](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Piironen+Vehtari:2017a))).
 
 This picture may also help explain ELPD
 
@@ -100,19 +98,15 @@ loo_estimates
 
 However, the difference between models' ELPD is a difference score that requires a separate estimation from computing just the raw model ELPD (similar to how you need to compute contrasts in order to compare estimated means). So you want to compare models based on `elpd_diff`. `elpd_diff` shows the difference between models' ELPD; it's a direct comparison of their estimated out-of-sample prediction capabilities. `elpd_se` is the standard error associated with this estimate, which shows how reliable this estimate is.
 
-"[As quick rule:](https://avehtari.github.io/modelselection/CV-FAQ.html#12_What_is_the_interpretation_of_ELPD__elpd_loo__elpd_diff)"
+"[As quick rule](https://avehtari.github.io/modelselection/CV-FAQ.html#12_What_is_the_interpretation_of_ELPD__elpd_loo__elpd_diff),"
 
-> If elpd difference (`elpd_diff` in `loo` package) is less than 4, the difference is small [and the models have "very similar predictive performance"] (Sivula, Magnusson and Vehtari, [2020](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Sivula+etal:2020:loo_uncertainty)).
->
-> If elpd difference is larger than 4, then compare that difference to standard error of `elpd_diff`...When the difference (`elpd_diff`) is larger than 4, the number of observations is larger than 100, and the model is not badly misspecified, then normal approximation and SE are quite reliable description of the uncertainty in the difference.
+> If elpd difference (`elpd_diff` in `loo` package) is less than 4, the difference is small [and the models have "very similar predictive performance"] (Sivula, Magnusson and Vehtari, [2020](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Sivula+etal:2020:loo_uncertainty)). If elpd difference is larger than 4, then compare that difference to standard error of `elpd_diff`...
 
 `p_loo` is the effective number of parameters in the model. It is a penalty term applied to each model that represents model complexity. Per Vehtari:
 
-> It is not needed for elpd_loo, but has diagnostic value. It describes how much more difficult it is to predict future data than the observed data. Asymptotically under certain regularity conditions, p_loo can be interpreted as the effective number of parameters.
+> It is not needed...but has diagnostic value. It describes how much more difficult it is to predict future data than the observed data. Asymptotically under certain regularity conditions, p_loo can be interpreted as the effective number of parameters.
 >
 > p_loo \>N or p_loo \>p indicates that the model has very weak predictive capability. This can happen even in case of well specified model (as demonstrated in Figure 1 in Vehtari, Gelman and Gabry (2017)), but may also indicate a severe model misspecification.
->
-> See more in "Interpreting p_loo when Pareto-k\^ is large" in LOO Glossary.
 
 ### Information Criteria
 
@@ -126,15 +120,15 @@ However, the difference between models' ELPD is a difference score that requires
 
 > **"**Vehtari, Gelman and Gabry ([2017](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Vehtari+etal:PSIS-LOO:2017)) show that PSIS-LOO has usually smaller error in estimating ELPD than WAIC. The exception is the case when p_loo ≪N, as then WAIC tends to have slightly smaller error, but in that case both PSIS-LOO and WAIC have very small error and it doesn't matter which computational approximation is used. On the other hand, for flexible models WAIC fails more easily, has significant bias and is less easy to diagnose for failures. WAIC has been included in `loo` package only for comparison purposes and to make it easy to replicate the results in Vehtari, Gelman and Gabry ([2017](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Vehtari+etal:PSIS-LOO:2017))
 
-Comparing 5.3 to 5.1:
+Comparing model b6.7 to b6.8:
 
 ```{r}
 loo_estimates |> slice(1:2) |> select(1:3)
 ```
 
-Since the estimated difference between the model's ELPD is small, the models can be said to have comparable predictive performance.
+There is a large difference between their estimated ELPD, such that b6.7 is estimated to be much better at predicting new data than b6.8.
 
-However, if we compare 5.1 to b5.2...
+However, if we compare b6.6 to b6.8...
 
 ```{r}
 loo_estimates |> slice(1,3) |> select(1:3)
@@ -142,25 +136,9 @@ loo_estimates |> slice(1,3) |> select(1:3)
 
 That is a large difference between the models (`elpd_diff`\> 4), so now we check the SE estimate for that difference. [Per Vehtari](https://discourse.mc-stan.org/t/understanding-looic/13409/6), you want to see that $ELPD_{diff} > 4 * SE_{diff}$
 
-```{r}
-loo_estimates |> mutate(diff_check=ifelse(elpd_diff>(abs(2*se_diff)), "Big", "Not big"))
-```
-
 **BUT REMEMBER:** Just because a model with an extra predictor is making better predictions, that does not imply that model is a better causal or theoretical model. It just means it has something in it that's associated with the outcome and "*if you select a model based only on expected predictive accuracy, you could easily be confounded."* Do not automatically discard a model out of hand because it has worse performance; consider the relationships between variables and different possible causal models, and the potential for confounds or spurious relationships that may affect the models.
 
 Alsoconsider also that "*...in the natural and social sciences the models under consideration are almost never the data-generating models. It makes little sense to attempt to identify a 'true' model."* (McElreath, chapter 7).
-
-$$
-0.35_{se}*4=1.4
-$$
-
-$$
-1.4>-0.87_{diff}
-$$
-
-Since the difference between the models is not bigger than 4 SE's, there is not a meaningful difference in predictive accuracy between 5.1 and 5.3.
-
-Given that 5.1 is the simpler model, that's the one we'd pick.
 
 **ALTERNATIVELY, Z's textbook also recommended this other approach**: Check to see that the difference between the models' ELPD is at least 2 standard error's below zero.
 
@@ -174,7 +152,15 @@ $$
 
 Since $-0.17<0$, there is a meaningful difference between the models.
 
-## Diagnostics: Checking Pareto-K
+## Pareto-K and Outliers
+
+For this example, which shows how outliers can negatively affect posterior predictions, use the following McElreath models:
+
+```{r}
+b5.1=readRDS(file= here::here("fits", "b05.01.rds"))
+b5.2=readRDS(file= here::here("fits", "b05.02.rds"))
+b5.3=readRDS(file= here::here("fits", "b05.03.rds"))
+```
 
 [https://avehtari.github.io/modelselection/CV-FAQ.html#17_What_to_do_if_I\_have_many_high_Pareto\_(hat{k})%E2%80%99s](https://avehtari.github.io/modelselection/CV-FAQ.html#17_What_to_do_if_I_have_many_high_Pareto_(hat%7Bk%7D)%E2%80%99s)
 
@@ -186,7 +172,7 @@ Since $-0.17<0$, there is a meaningful difference between the models.
 >
 > -   If k\^\>0.7, then importance sampling is not able to provide useful estimate for that component/observation.
 >
-> Pareto-k\^ is also useful as a measure of influence of an observation. Highly influential observations have high k\^ values. Very high k\^ values often indicate model misspecification, outliers or mistakes in data processing. [In cases where k\>0.7, check `p_loo`...
+> Pareto-k\^ is also useful as a measure of influence of an observation. Highly influential observations have high k\^ values. Very high k\^ values often indicate model misspecification, outliers or mistakes in data processing. In cases where k\>0.7, check `p_loo`...
 >
 > -   If p_loo ≪p (the total number of parameters in the model), then the model is likely to be misspecified. Posterior predictive checks (PPCs) are then likely to also detect the problem. Try using an overdispersed model, or add more structural information (nonlinearity, mixture model, etc.).
 >
@@ -214,11 +200,17 @@ b5.3$criteria$loo$diagnostics$pareto_k[13]
 
 In this case, that value isn't great, but not bad enough (i.e., at or worse than .7) to return a warning message.
 
+### What to do when you have overly-influential observations?
+
+One option is to use a more robust test, such as "robust regression" with a student-t distribution instead of a normal distribution.
+
 ## Bayes factors
 
-### How does a Bayes factor compare to LOO-CV?
+A Bayes factor answers the question, ***under which model are the observed data more probable? Which model is more likely to have produced the data?***
 
 [From Vehtari's blog](https://avehtari.github.io/modelselection/CV-FAQ.html#24_What_is_the_relationship_between_LOO-CV_and_Bayes_factor):
+
+### How does a Bayes factor compare to LOO-CV?
 
 > -   LOO-CV estimates the predictive performance given N−1 observations. Bayes factor can be presented as ratio of predictive performance estimates given 0 observations. Alternatively Bayes factor can be interpreted as choosing the maximum a posterior model.
 >
@@ -231,8 +223,6 @@ In this case, that value isn't great, but not bad enough (i.e., at or worse than
 > -   Computation of Bayes factor is more challenging. For example, if computed from MCMC sample, usually several orders of magnitude bigger sample sizes are needed for Bayes factor than for LOO-CV
 >
 > -   If the models are well specified, regular, and there is a lot of data compared to the number of parameters (n≫p), then Bayes factor may have smaller variance than LOO-CV. If the models are nested, instead of Bayes factor, it is also possible to look directly at the posterior of the interesting parameters (see also 2b in [Using cross-validation for many models](https://avehtari.github.io/modelselection/CV-FAQ.html#manymodels))
-
-A Bayes factor answers the question, ***under which model are the observed data more probable? Which model is more likely to have produced the data?***
 
 Note: The code below is copied from the `bayestestR` website. To view their tutorial in full, see: <https://easystats.github.io/bayestestR/articles/bayes_factors.html#bayesfactor_models>
 

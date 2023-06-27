@@ -1,20 +1,10 @@
 ```{r setup, include=FALSE}
-legaldmlab::primeR(analysis_type = "Bayes")
+
+pacman::p_load(brms, tidyverse, easystats)
+options(mc.cores = parallel::detectCores(logical = FALSE)-1)
 ```
 
 # Part 4: Examining the Posterior
-
-The following two commands are your best options for examining posterior effects:
-
-```{r}
-brms::fixef(b5.3) # uses quantile-based intervals only
-
-bayestestR::describe_posterior(b5.3, ci_method = "HDI", ci = .95) # most detailed info, and can change to HDI
-```
-
--   Do note though that the table that is printed in the console/in RMarkdown when you use `describe_posterior` is cleaned up and formatted...if you save this table in the environment, it will be a regular data frame with un-rounded columns, etc. If you want to save the table exactly how it is printed in the console (i.e., rounded to two decimals, ROPE and CI columns combined in APA style, etc.), to export an APA formatted table, pipe `describe_posterior` to `insight::format_table()`.
-
-## Effect Existence and Significance
 
 [Makowski et al. (2019)](https://www.frontiersin.org/articles/10.3389/fpsyg.2019.02767/full) recommends the following:
 
@@ -22,14 +12,19 @@ bayestestR::describe_posterior(b5.3, ci_method = "HDI", ci = .95) # most detaile
 -   At least one index of effect *significance* (either the **ROPE test or a Bayes factor**, depending on the situation)
     -   If you have little prior information to go off of in your study and thus have used *weak priors* and are *unsure what to expect* regarding the effect size, [you should report the ROPE test]{.underline}*.*
 
-    -   If you used more informative priors and have a more clear idea of the expected effect size, [use Bayes factors.]{.underline}
+    -   If you used more informative priors and have a more clear idea of the expected effect size, [use Bayes factors.]{.underline} The following commands are your best options for examining posterior effects:
 
 ```{r}
-describe_posterior(fit, ci_method = "HDI", ci=.89, 
-                   rope_range = c(-.25, .25), rope_ci = .95)
+brms::fixef(b5.3) # uses quantile-based intervals only
+
+broom.mixed::tidyMCMC(b5.3, conf.method = "HPDinterval", conf.int = TRUE, conf.level = .95) # can change intervals
+
+bayestestR::describe_posterior(b5.3, ci_method = "HDI", ci = .95, rope_range = c(-.25, .25)) # most detailed
 ```
 
-### Effect Existence
+-   Do note though that the table that is printed in the console/in RMarkdown when you use `describe_posterior` is cleaned up and formatted...if you save this table in the environment, it will be a regular data frame with un-rounded columns, etc. If you want to save the table exactly how it is printed in the console (i.e., rounded to two decimals, ROPE and CI columns combined in APA style, etc.), to export an APA formatted table, pipe `describe_posterior` to `insight::format_table()`.
+
+## Effect Existence
 
 The most basic inferential statistic, it is the maximal probability the our estimate is strictly directional; that is, larger or smaller than 0, and it generally ranges from 50% (no preference) to 100%.
 
@@ -43,7 +38,9 @@ pd > 99%: probably existing
 pd > 99.9%: certainly existing
 ```
 
-### Effect Magnitude
+Note that a low *pd* is similar to a p-value in that it does not tell you an effect does not exist; rather, it says you have uncertainty about whether it exists.
+
+## Effect Magnitude (via ROPE)
 
 `rope()` computes the portion of the HDI (defualt to 89% of HDI) of a posterior distribution that lies within a Region of Practical Equivilence (ROPE).
 
@@ -71,7 +68,15 @@ Also in either case, you are encouraged to interpret the results of the test in 
 < 1% in ROPE: significant (we can reject the null hypothesis)
 ```
 
-**Note that extra caution is required as its interpretation highly depends on other parameters such as sample size and ROPE range**. See [this link](https://easystats.github.io/bayestestR/articles/region_of_practical_equivalence.html#sensitivity-to-parameters-scale).
+*Note that extra caution is required as its interpretation highly depends on other parameters such as sample size and ROPE range*. See [this link](https://easystats.github.io/bayestestR/articles/region_of_practical_equivalence.html#sensitivity-to-parameters-scale).
+
+### Notes on using the ROPE from my meeting with Mike
+
+-   The default recommended heuristic for a ROPE size is [-0.1, 0.1] for a standardized parameter. You can use `bayestestR::rope_range()` to find out what that would be for your variable of interest.
+
+-   However, choosing a ROPE boundary should be done with caution, and generally not left up to a heuristic. It should define the line between "so small as to be meaningless" and "small, but large enough to be meaningful or useful."
+
+-   In my dissertation, my originally chosen ROPE of [-0.2, 0.2] was the size of what's conventionally considered a small effect (Cohen's d). That's not necessarily meaningless...especially when you consider that was a third of my anticipated effect size (Cohen's d = 0.6).
 
 ## FUN SURPRISE
 

@@ -6,6 +6,7 @@ date: "2023-06-20"
 
 ```{r setup, include=FALSE}
 pacman::p_load(tidyverse, brms, easystats)
+options(mc.cores = parallel::detectCores(logical = FALSE)-1)
 ```
 
 # Part 2: Fitting and Diagnosing a Bayesian Model
@@ -72,7 +73,11 @@ fit <-
 
 ### How to "update" An Existing Model Fit
 
-Rather than use the above code to "fit" several models that have slight differences between them, you can sometimes fit one model, and then update it with the following code. This may allow you to get around having to re-compile the code for the model before sampling, which dramatically reduces the computation time.
+Rather than use the above code to "fit" several models that have slight differences between them, you can sometimes fit one model, and then update it with the following code. This...
+
+1.  Saves lines of code
+2.  By proxy, makes things neater and reduces copy-paste errors
+3.  And may allow you to get around having to re-compile the code for the model before sampling, which dramatically reduces the computation time.
 
 ```{r}
 
@@ -86,7 +91,7 @@ m3 <-update(brms_dummy_single, newdata = practice_data,
                           formula. = ~ .-poc + poc_5 + poc_8)
 ```
 
-## Check Variables
+## Check Your Variables
 
 -   If you plan to put an interaction term into your model, or anything that is squared, cubed, etc., this dramatically increases collinearity and thus may make your model violate assumptions. So **mean-center any continuous variables you are putting in the model's interaction term**
 
@@ -94,7 +99,7 @@ m3 <-update(brms_dummy_single, newdata = practice_data,
 
     -   Can be accomplished with either `parameters::standardized_parameters(x, method = "refit")` or `parameters::model_parameters(model, standardize = "x", method = "refit")`
 
-## Creating an Test Model (i.e., Prior Predictive Checking)
+## Creating a Test Model (i.e., Prior Predictive Checking)
 
 The first thing you need to do is pick a sensible prior. See [this page by the Stan development team](https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations) for suggestions on default, weakly-informative priors.
 
@@ -176,43 +181,11 @@ This is an important step for every model, even if you're only build the one. **
 
 There are many, many ways of doing this. Here's one method, done by Kurz, in his translation of *Statistical Rethinking* that plots a regression line on the data. First extract the values predicted by the model with `fitted()`, as noted above; then combine this with the data and pipe to ggplot
 
-```{r}
-brms_fit <-brm(price ~ 1 + carat,
-               family = gaussian(link = "identity"),
-               data = diamonds,                
-               prior = c(
-                 prior(normal(3, 2), class = Intercept),
-                 prior(normal(0, 3), class= sigma), 
-                 prior(normal(0, 3), class = b)), 
-               iter = 28000, warmup = 27000, chains = 3, cores = 3, seed = 4)
-
-
-fitted(brms_fit) %>% # extract fitted predictions
-  data.frame() %>% # convert from matrix to df
-  bind_cols(diamonds) %>% # combine this with the original data
-  #...and pass to ggplot
-  
-  ggplot(aes(x = price, y = Estimate)) + # change x-axis to DV name!
-  geom_abline(linetype = 2, color = "grey50", size = .5) +
-  geom_point(size = 1.5, color = "firebrick4", alpha = 3/4) +
-  geom_linerange(aes(ymin = Q2.5, ymax = Q97.5),
-                 size = 1/4, color = "firebrick4") +
-  #geom_text(data = . %>% filter(Loc %in% c("ID", "UT", "RI", "ME")),
-  #         aes(label = Loc), hjust = 1, nudge_x = - 0.25) +
-  labs(x = "Observed", y = "Predicted") +
-  theme_bw() +
-  theme(panel.grid = element_blank())
-```
-
 Alternatively, you can plot and compare the predicted posterior densities via any of the following:
 
 ```{r}
-performance::posterior_predictive_check(brms_fit)
-performance::check_posterior_predictions(brms_fit)
-pp_check(brms_fit)
+pp_check(b5.3)
 ```
-
-Note that the first two commands are basically identical. This is because they merely act as a easy-to-remember wrapper functions that send your model to `pp_check`.
 
 Note that the above is mainly for *linear* regression. For logistic models, see [advice from Vehtari](https://discourse.mc-stan.org/t/posterior-predictive-check-for-binomial-regression/7203/4).
 
@@ -221,91 +194,104 @@ Note that the above is mainly for *linear* regression. For logistic models, see 
 You can check basically all major model requirements/assumptions for a linear model at once with the following:
 
 ```{r}
-performance::check_model(b5.2)
+model_checks=performance::check_model(b5.3)
+model_checks
 ```
-
-Note that this command also works with frequentest models made with base R's `lm()` function.
 
 Descriptions of all major assumptions (for linear regression) follow forthwith. (See *R for Psychology,* section 15.9, page 488 in the pdf).
 
-#### Homogeneity
+Note that...
 
-This is a test of the assumption that the variances of the independent groups' distributions on a continuous variable are **similar, equal, or roughly equal.** If the variances in the groups are different their distributions are different, which makes them incomparable. If you violate this assumption you need to do something to fix it before moving forward. Usually you'd use Lavene's Test
+> If the visual inspection of the residuals signals problems, one may have to iterate through steps 2, 3, and 4 (i.e., of Fife, 2020) until the assumptions have been met, each time making a modification to the model (e.g., transforming the DV, removing outliers, using weighted least squares, or using generalized linear models.
 
-> Strictly speaking, the regression model assumes that each residual is generated from a normal distribution with mean 0, and (more importantly for the current purposes) with a standard deviation σ that is the same for every single residual. In practice, it's impossible to test the assumption that every residual is identically distributed. Instead, what we care about is that the standard deviation of the residual is the same for all values of Yˆ , and (if we're being especially paranoid) all values of every predictor X in the model (R for psychology)
+#### Consistent/Constant Error Variance
+
+This is called homogeneity of variance (or homo/heteroscadesticity in the context of ANOVA).
+
+If the variances in the groups are different, their distributions are different, which makes them incomparable. If you violate this assumption you need to do something to fix it before moving forward. Usually you'd use Lavene's Test
+
+> Strictly speaking, the regression model assumes that each residual is generated from a normal distribution with mean 0, and (more importantly for the current purposes) with a standard deviation σ that is the same for every single residual. In practice, it's impossible to test the assumption that every residual is identically distributed. Instead, what we care about is that the standard deviation of the residual is the same for all values of Yˆ , and (if we're being especially paranoid) all values of every predictor X in the model...
+>
+> The main thing to worry about, if homogeneity of variance is violated, is that the standard error estimates associated with the regression coefficients are no longer entirely reliable, and so your t tests for the coefficients aren\'t quite right either... (R for psychology)
 
 ```{r}
 plot(model_1, 3) # horizontal line with equally spread points is a good indication
 
-performance::check_homogeneity(model_2)
+performance::check_model(b5.3, check = "homogeneity")
 ```
 
 #### Linearity of Residuals
 
-> A pretty fundamental assumption of the linear regression model is that relationship between X and Y actually be linear! Regardless of whether it's a simple regression or a multiple regression, we assume that the relatiships involved are linear. (R for Psychology, p. 474)
+Check a graph of the residuals of the model vs. its fitted predictions.
+
+> A pretty fundamental assumption of the linear regression model is that relationship between X and Y actually be linear! Regardless of whether it's a simple regression or a multiple regression, we assume that the relationships involved are linear. (R for Psychology, p. 474)
+
+For help: <https://cran.r-project.org/web/packages/tidybayes/vignettes/tidybayes-residuals.html>
 
 ```{r}
+# base R
 plot(model_1, 1) # horizontal line with equally spread points is a good indication
+
+
+# easystats version
+check_model(b5.3, check = "linearity")
+
+# manual version with tidybayes and ggplot
+stuff=tibble(point_preds=fitted(b5.3)[, 1], # extract and save model fitted values
+             point_errs=residuals(b5.3)[, 1]) # extract and save model residuals
+
+stuff |> 
+  ggplot(aes(x= point_preds, y=point_errs)) +
+  geom_point() +
+  geom_smooth()
 ```
 
-#### Residuals are Normally Distributed
+#### Normality of Residuals
 
-In multiple regression, the assumption of normality applies only to the residuals, *not* the independent variables. "Simply put, the residuals are the error in the relationship between the independent variables and the dependent variable in a regression model. These should be normally distributed.
+In multiple regression, the assumption of normality applies only to the residuals, *not* the independent variables.
 
 > Like half the models in statistics, standard linear regression relies on an assumption of normality. Specifically, it assumes that the residuals are normally distributed. It's actually okay if the predictors X and the outcome Y are non-normal, so long as the residuals are normal. See Section (R for psychology)
 
-##### ***Visual Checks***
+You should prefer visual diagnostics to significance checks here:
 
-Visual graphs of residuals show if the variables are following a path that would be expected, if your data was normally distributed. Only looking for visual evidence of "extreme" problems.
+> It is common...to perform statistical tests of normality or homoskedasticity or independence. I would advise against it. Like other tests of significance, these tests of assumptions are sensitive to sample size...these tests tell us whether our distributions depart from what is expected. They do not tell us whether they are different enough to muck up our analysis. The latter is better done through visual interpretation of results (as well as through a sensitivity analysis [(Fife, 2020)](https://journals.sagepub.com/doi/pdf/10.1177/1745691620917333?casa_token=eX1tacsFYX0AAAAA:KBx-m-9gzt46-daDdypUH4fluLwkhxgZyey51Mo6PwXLppXgnJ8L0-_eurx5kvXXE7aWVzUU3dXUbQ)
 
-You can use two different types of graphs to check this:
+Visual graphs of residuals show if the variables are following a path that would be expected, if your data was normally distributed. Only looking for visual evidence of "extreme" problems. You can use two different types of graphs to check this:
 
--   Histogram/density function
+-   Histogram/density function of the residuals
 
 -   A PP-plot or QQ-plot. PP-plots show the expected cumulative probability for a z-distribution by the observed cumulative probability; QQ plots show the same thing but with quantiles.
 
-##### ***Significance test checks***
+```{r}
+#### Visual checks ####
+  
+plot(model_1, 2) # Q-Q plot. Residuals should follow the dashed line, which would indicate even-prediction error across the model. If the shape is anything other than a straight line it indicates possible miss-specification or non-linear relationships between variables
 
-The *Kolmogorov-Smirnov Test* or the *Shapiro-Walk test* both work here. Both basically compare data with a normal distribution that has the same M and SD. A p \< .05 means that distribution of variable is significantly different from normal. This will likely be significant with large sample, so it should be combined with a visual check!!!
+
+# QQ-plot for brms
+diamonds |> 
+  tidybayes::add_residual_draws(brms_fit) |> 
+  tidybayes::median_qi() |> 
+  ggplot(aes(sample = .residual)) + 
+    geom_qq() +
+    geom_qq_line()
+
+hist(model_1$residuals)
+```
+
+The *Kolmogorov-Smirnov Test* or the *Shapiro-Walk test* both work as significance tests of this assumption. Both basically compare data with a normal distribution that has the same M and SD. A p \< .05 means that distribution of variable is significantly different from normal. This will likely be significant with large sample, so it should be combined with a visual check!!!
 
 Note that this test almost always yields significant results for the distribution of residulas; visual inspection (QQ-plots) are preferable!!!!!
 
 ```{r}
-#### Visual checks ####
-qplot(model_1$residuals) #residuals histogram. Should have a normal distribution
-  
-plot(model_1, 2) # Q-Q plot. Residuals should follow the dashed line, which would indicate even prediction error across the model. If the shape is anything other than a straight line it indicates possible miss-specification or non-linear relationships between variables
-
 #### Statistical test checks ####
 check_normality(model_1) # Shapiro-Wilks test. 
 broom::tidy(shapiro.test(model_1$residuals))
 ```
 
-#### Heteroscadasticity: Non-constant Error Variance
+#### Other assumptions
 
-> The linear regression algorithm assumes that there is a linear relationship between the parameters of independent variables and the dependent variable Y. If the true relationship is not linear, we cannot use the model as the accuracy will be significantly reduced. ([link](https://towardsdatascience.com/linear-regression-assumptions-why-is-it-important-af28438a44a1))
-
-"Residual" is the difference between the predicted score and actual score. The amount of miss-prediction, in other words, that your model is making. You want this error rate *to be constant along the values of the DV*. If the error rate is not constant, it means the model is predicting better in some areas than in others, which is problematic.It's really problematic if the model only works for some people or in some ranges and not others.
-
-Two ways to do this:
-
--   Check the normality of the residuals (*these should be normally distributed*)
-
--   Check the plot of the (standardized) residuals against predicted scores (*should be evenly distributed and scattered*)
-
-If you have problems with this you can add or remove some variables, transform the data, or switch to a weighted least squares model.
-
-```{r}
-#### Visual check ####
-plot(model_2, 1) # want to see a horizontal line, without distinct patterns
-
-#### Significance test ####
-performance::check_heteroscedasticity(model_2) #You want to see a non-significant result; significance implies assumption violation
-
-ncvTest(model_2)
-```
-
-#### Multicolinearity
+##### Multicolinearity (Predictors are uncorrelated)
 
 If your variables aren't really adding unique variance and there's tons of overlap, that will cause prediction issues. It is important to check multicolinearity to verify that your predictors are adding unique variance prediction to the model. Extreme collinearity can occur when what appear to be separate variables are actually measure the same thing.
 
@@ -329,7 +315,7 @@ Example write up:
 
 > Tests to check the assumption of collinearity indicated that correlation between the predictors was not an issue (Sex, *VIF*= 1.00; Child, *VIF*=1.00; Mean Negative Affect, *VIF*=1.01).
 
-#### Autocorrelation
+##### Autocorrelation
 
 Including interaction terms in regression models tends to make the autocorrelation shoot through the roof (because these terms are a bit redundant). So you should check this.
 
