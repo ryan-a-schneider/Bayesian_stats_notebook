@@ -11,7 +11,7 @@ options(mc.cores = parallel::detectCores(logical = FALSE)-1)
 
 # Part 2: Fitting and Diagnosing a Bayesian Model
 
-## Preliminary info on brms
+## I. Preliminary info on brms
 
 Stuff to know about...
 
@@ -29,7 +29,9 @@ Stuff to know about...
 
 -   Sometimes you'll hear about "burn in" in discussions on MCMC, and what an appropriate rate is for the sampler. That does not apply to brms or rstanarm. Also, it is not the same thing as warm-up steps. Ignore it for now.
 
-## How to Fit a Model with brms
+## II. R code 
+
+### brms
 
 -   Note that `coef= x` does not have to be specified. It's only necessary if you do not want to apply the same prior to every effect in the model (which would be done by simply leaving it `class = b`)
 -   If using Bayes factors, multiply \`iter\` x10 so you have 50-60k steps needed instead of 5-6k. Bayes factors need a very large ESS per parameter
@@ -71,6 +73,34 @@ fit <-
 
 -   If you have aggregated data, you must use the latter version that models data on the `binomial` distribution (which makes intuitive sense, given that the Bernoulli distribution is for modeling only a single binomial event)
 
+### rstanarm
+
+```{r}
+# linear
+rstan_fit=stan_glm(data = survey,
+                   formula = moptim ~ 1 + sex + child + mnegaff, 
+                   family = gaussian(link = "identity"), 
+                   prior = student_t(3,location=c(0,0,0), scale=c(3,3,3), autoscale = FALSE),
+                   #prior_intercept = normal(), 
+                   algorithm = c("sampling"), 
+                   mean_PPD = TRUE,
+                   adapt_delta = 0.95, 
+                   chains= 3, iter=2000, cores=3)
+
+# logistic
+fit_rstan=stan_glm(data=pubdata, 
+                   family = binomial, 
+                   formula= Accept_Reject ~ PTS_text + DiscountCondition, 
+                   prior = c(student_t(5, 0, 1), class = "b"),
+                   prior_intercept = normal(location = 0, scale = NULL, autoscale = TRUE), 
+                   prior_PD = FALSE, 
+                   iter=2000, chains=4, cores=4)
+#diagnostic_file=file.path(tempdir(), "df5.csv"))
+
+```
+
+-   If you specify your own prior(s), disable `autoscale` by setting it to `FALSE`. Conversely, if you opt to have rstanarm create a weakly-informative prior for you based on your data, set the scale to `NULL` and set `autoscale = TRUE`
+
 ### How to "update" An Existing Model Fit
 
 Rather than use the above code to "fit" several models that have slight differences between them, you can sometimes fit one model, and then update it with the following code. This...
@@ -91,7 +121,7 @@ m3 <-update(brms_dummy_single, newdata = practice_data,
                           formula. = ~ .-poc + poc_5 + poc_8)
 ```
 
-## Check Your Variables
+## III. Proper set up
 
 -   If you plan to put an interaction term into your model, or anything that is squared, cubed, etc., this dramatically increases collinearity and thus may make your model violate assumptions. So **mean-center any continuous variables you are putting in the model's interaction term**
 
@@ -99,11 +129,23 @@ m3 <-update(brms_dummy_single, newdata = practice_data,
 
     -   Can be accomplished with either `parameters::standardized_parameters(x, method = "refit")` or `parameters::model_parameters(model, standardize = "x", method = "refit")`
 
-## Creating a Test Model (i.e., Prior Predictive Checking)
+## IV. Creating a Test Model (Prior Predictive Checking)
 
-The first thing you need to do is pick a sensible prior. See [this page by the Stan development team](https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations) for suggestions on default, weakly-informative priors.
+The first thing you need to do is pick a sensible prior. See [this page by the Stan development team](https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations) for suggestions on default, weakly-informative priors. The code for this model will be identical to your final model, except for one thing: add `sample_prior="only"`
 
-The code for this model will be identical to your final model, except for one thing: add `sample_prior="only"`
+-   In a linear models:
+
+    -   The prior for the intercept represents the *average value of y across the whole sample*
+
+    -   The prior for each coefficient represents the expected beta weight (i.e., the change). Thus, you're setting the prior for the expected change between each level of the variable (if categorical) or for each 1-point increase (if continuous), *on that variable's scale*.
+
+-   In logistic models:
+
+    -   The priors are on the **log-odds** scale; you're specifying your prior belief in terms of the log-odds of y=1.
+
+    -   The intercept value represents the log-odds of success (y=1), when the predictors are held constant at 0.
+
+    -   It's easiest (for me) to think it terms of odds ratios, and then take the inverse of that with `log()` to find the coefficient that comes out to, when setting a prior.
 
 ```{r}
 b5.1 <- 
@@ -115,42 +157,26 @@ b5.1 <-
                 prior(exponential(1), class = sigma)),
       iter = 2000, warmup = 1000, chains = 4, cores = 4,
       seed = 5,
-      sample_prior = "only",
-      file = "../fits/b05.01")
+      sample_prior = "only")
+
+
+# or with rstanarm
+prior_fit_rstan=stan_glm(data=raw_data, 
+                   family = binomial, 
+                   formula= plea_trial_pref ~ plea_trial_assignment, 
+                   prior = c(student_t(5, 0, 1), class = "b"),
+                   prior_intercept = normal(location = 0, scale = NULL, autoscale = TRUE), 
+                   iter=2000, chains=4, cores=4,
+                   prior_PD = TRUE, # sample from the prior
+                   )
+
+# extract draws and plot
+
 ```
 
-Then extract draws from the prior using the command noted above and plot
+## V. Diagnostic Checks (for the Final Model)
 
-```{r}
-
-#### Kurz's method in his translation of Statistical Rethinking ####
-
-some_draws=brms::prior_draws(b5.1)
-
-some_draws %>% 
-  slice_sample(n = 50) %>% 
-  rownames_to_column("draw") %>% 
-  expand(nesting(draw, Intercept, b),
-         a = c(-2, 2)) %>% 
-  mutate(d = Intercept + b * a) %>% 
-  
-  ggplot(aes(x = a, y = d)) +
-  geom_line(aes(group = draw),
-            color = "firebrick", alpha = .4) +
-  labs(x = "Median age marriage (std)",
-       y = "Divorce rate (std)") +
-  coord_cartesian(ylim = c(-2, 2)) +
-  theme_bw() +
-  theme(panel.grid = element_blank())
-
-
-#### Default plots to do this super fast and easy ####
-plot(b5.1)
-```
-
-## Diagnostic Checks (for the Final Model)
-
-### A. Monte Carlo Diagnostics
+### a. Monte Carlo Diagnostics
 
 After you've built your final model, check to see the chains converged.
 
@@ -169,19 +195,19 @@ diag$Rhat |> effectsize::interpret_rhat()
 diag$ESS |> effectsize::interpret_ess()
 ```
 
-### B. POSTERIOR Predictive Check
+### b. POSTERIOR Predictive Check
 
-Posterior predictive checks Checks compare the observed data to replicated data from your model. If the model is a good fit and lines up with the replicated data, you should be able to generalize the model to new data sets. [Fife (2020)](https://journals.sagepub.com/doi/pdf/10.1177/1745691620917333?casa_token=Topmd-Kl6MEAAAAA:_wlfSAHi4G0EshY0ISz4DSQyMZkyxzzFZYxZzQfitVqSs4z2ILAyjlWEYSC8ZIG9qeRO-tXbBQvuHw) recommends checking a visual plot of the model's predictions as one of the first things you should do in data analysis (step 4, p. 1602).
+Posterior predictive checks Checks compare the observed data to replicated data from your model. If the model is a good fit and lines up with the replicated data, you should be able to generalize the model to new data sets.
 
 This is an important step for every model, even if you're only build the one. ***If you're building multiple models and trying to compare competing theories, this step should be incorporated into model selection....***
 
 > "Model building and model choice in the frequentest domain are based primarily on choosing the model that best fits the data. In the Bayesian domain, the choice among a set of competing models is based on which model provides the best posterior predictions. That is, the choice among a set of competing models should be based on which model will best predict what actually happens." p. 98
 
-> In order to check your model and compare models, you need to do Posterior Predictive Checks. "The general idea behind posterior predictive checking is that there should be little, if any, discrepancy between data generated by the model and the actual data itself. In essence, posterior predictive checking is a method for assessing the specification quality of the model. Any deviation between the data generated from the model and the actual data implies model misspecification." p.99
+This requires the model being able to replicate the observed data well...
 
-There are many, many ways of doing this. Here's one method, done by Kurz, in his translation of *Statistical Rethinking* that plots a regression line on the data. First extract the values predicted by the model with `fitted()`, as noted above; then combine this with the data and pipe to ggplot
+> The general idea behind posterior predictive checking is that there should be little, if any, discrepancy between data generated by the model and the actual data itself. In essence, posterior predictive checking is a method for assessing the specification quality of the model. Any deviation between the data generated from the model and the actual data implies model misspecification." p.99
 
-Alternatively, you can plot and compare the predicted posterior densities via any of the following:
+To check the model's predictions, do the following:
 
 ```{r}
 pp_check(b5.3)
@@ -189,7 +215,9 @@ pp_check(b5.3)
 
 Note that the above is mainly for *linear* regression. For logistic models, see [advice from Vehtari](https://discourse.mc-stan.org/t/posterior-predictive-check-for-binomial-regression/7203/4).
 
-### C. Model-Specific Assumption Checks
+[Fife (2020)](https://journals.sagepub.com/doi/pdf/10.1177/1745691620917333?casa_token=Topmd-Kl6MEAAAAA:_wlfSAHi4G0EshY0ISz4DSQyMZkyxzzFZYxZzQfitVqSs4z2ILAyjlWEYSC8ZIG9qeRO-tXbBQvuHw) recommends checking a visual plot of the model's predictions as one of the first things you should do in data analysis (step 4, p. 1602). This is separate from a posterior predictive check, but fills the same role. Both pit the models' predictions up against the data.
+
+### c. Model-Specific Assumption Checks
 
 You can check basically all major model requirements/assumptions for a linear model at once with the following:
 
@@ -204,7 +232,7 @@ Note that...
 
 > If the visual inspection of the residuals signals problems, one may have to iterate through steps 2, 3, and 4 (i.e., of Fife, 2020) until the assumptions have been met, each time making a modification to the model (e.g., transforming the DV, removing outliers, using weighted least squares, or using generalized linear models.
 
-#### Consistent/Constant Error Variance
+#### c1. Consistent/Constant Error Variance
 
 This is called homogeneity of variance (or homo/heteroscadesticity in the context of ANOVA).
 
@@ -212,7 +240,7 @@ If the variances in the groups are different, their distributions are different,
 
 > Strictly speaking, the regression model assumes that each residual is generated from a normal distribution with mean 0, and (more importantly for the current purposes) with a standard deviation σ that is the same for every single residual. In practice, it's impossible to test the assumption that every residual is identically distributed. Instead, what we care about is that the standard deviation of the residual is the same for all values of Yˆ , and (if we're being especially paranoid) all values of every predictor X in the model...
 >
-> The main thing to worry about, if homogeneity of variance is violated, is that the standard error estimates associated with the regression coefficients are no longer entirely reliable, and so your t tests for the coefficients aren\'t quite right either... (R for psychology)
+> The main thing to worry about, if homogeneity of variance is violated, is that the standard error estimates associated with the regression coefficients are no longer entirely reliable, and so your t tests for the coefficients aren't quite right either... (R for psychology)
 
 ```{r}
 plot(model_1, 3) # horizontal line with equally spread points is a good indication
@@ -220,13 +248,21 @@ plot(model_1, 3) # horizontal line with equally spread points is a good indicati
 performance::check_model(b5.3, check = "homogeneity")
 ```
 
-#### Linearity of Residuals
+#### c2. Linearity of Residuals
 
-Check a graph of the residuals of the model vs. its fitted predictions.
+This is simply the (duh) assumption check that the relationship in the linear model is actually in fact linear; that the predictions and their misses are actually follow a linear path.
 
-> A pretty fundamental assumption of the linear regression model is that relationship between X and Y actually be linear! Regardless of whether it's a simple regression or a multiple regression, we assume that the relationships involved are linear. (R for Psychology, p. 474)
+Check a graph of the residuals of the model vs. its fitted predictions to visualize this.
 
 For help: <https://cran.r-project.org/web/packages/tidybayes/vignettes/tidybayes-residuals.html>
+
+Note that you may see both `fitted()` and `predict()` used in this context.
+
+-   `predict` returns the fitted values *before* a link function is applied, and `fitted` shows it *after* said link function
+
+-   Therefore, you can use either for a linear model, as there isn't really a link function, but this will matter for logistic regression.
+
+-   More practically, if you want to compare *fit to the original data, you should use* `fitted()` , as these are the y-hat values associated with the model.
 
 ```{r}
 # base R
@@ -246,7 +282,7 @@ stuff |>
   geom_smooth()
 ```
 
-#### Normality of Residuals
+#### c3. Normality of Residuals
 
 In multiple regression, the assumption of normality applies only to the residuals, *not* the independent variables.
 
@@ -289,7 +325,7 @@ check_normality(model_1) # Shapiro-Wilks test.
 broom::tidy(shapiro.test(model_1$residuals))
 ```
 
-#### Other assumptions
+#### c4. Other assumptions
 
 ##### Multicolinearity (Predictors are uncorrelated)
 

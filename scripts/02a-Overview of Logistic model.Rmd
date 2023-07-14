@@ -6,7 +6,6 @@ date: "2023-06-20"
 
 ```{r}
 pacman::p_load(tidyverse, brms, easystats)
-options(mc.cores = parallel::detectCores(logical = FALSE)-1)
 ```
 
 # Logistic Regression
@@ -65,7 +64,7 @@ An odds ratio is the effect size for logistic regression. It describes the magni
 
 ...but like all other effect sizes, it is descriptive, not an inferential statistic. You must, (1) use and interpret the data to show differences between conditions, and (2) not rely, heuristically, on a specific size for an odds ratio as an indicator of change.
 
-## brms Example
+## Example
 
 ```{r}
 # make a model
@@ -80,48 +79,23 @@ fit_logistic = brm(data = mtcars,
                    chains = 4, iter = 2000, warmup = 750, seed = 3)
 
 # grab results
-parameters(m) |> mutate(Odds_Ratio=exp(2)) |> relocate(Odds_Ratio, .before = 2)
+parameters(m, exponentiate = FALSE)
 
-parameters(fit_logistic, exponentiate = TRUE, ci=.89, ci_method = "HDI")
+parameters(fit_logistic, exponentiate = FALSE, ci=.89, ci_method = "HDI")
 ```
 
--   The coefficient of 0.31 for mpg is interpreted as the **expected change in log odds, for a one-unit increase in the DV.**
+In the mtcars data set, 13 out of 32 cars are manual transmissions...
 
--   If you turn this into an odds ratio (by exponentiation), you get 1.19. *For every 1-point increase in the predictor (MPG), the odds of a car being a manual transmission increase by a factor of 1.19 times*
+-   The probability that a *randomly selected car* would be a manual is therefore $13/32=0.40$ , or 40% (i.e., the proportion out of the total sample space).
+
+-   The *odds* of a car being a manual are $0.4/0.6=0.66$, or more easily interpreted in fraction form as $\frac{40}{60}=\frac{4}6=\frac{2}{3}$ . Thus, the odds of a car being a manual transmission are 2:3; out of every 5 cars, 2 will be manual and 3 will be automatic
+
+-   The *log-odds* of a car being a manual is $log(0.66)=-0.41$
+
+**INTERPETING THE COEFICIENTS:**
+
+-   The coefficient $\beta=0.31$ shows the expected change in the log-odds that the car is a manual, as MPG (the continuous predictor) increases by 1 point.
+
+-   The odds ratio for the same coefficient shows that *for every 1 MPG increase in fuel efficiency, there is a 1.4 times increase in the odds* of of the car being an automatic. Note that the increase is describing a change in odds, ***NOT*** x% "more likely"/how likely the outcome is.
 
 -   (if this was a categorical variable, it would say that the odds are x% higher for group A vs. group B)
-
-#### Translating Odds Ratios into (predicted) probability
-
-You can also compute predicted probabilities to understand the model in a different way. This can be done for both continuous and categorical predictors. Probability can be extracted from log-odds.
-
-```{r}
-
-# add predictions to the original data
-mtcars <- mtcars |> 
-  mutate(log_odds = predict(m), # only necessary to create the ggplot below
-         preds_prob = predict(m, type = "response"))
-
-# visualize log-odds and probabilities to see their connection
-ggplot(mtcars)+
-  geom_point(aes(mpg, am), color = "orange")+
-  geom_point(aes(mpg, preds_prob))+
-  geom_line(aes(mpg, preds_prob))+
-  geom_point(aes(mpg, log_odds), color = "blue")+
-  geom_line(aes(mpg, log_odds), color = "blue")+
-  geom_vline(xintercept = 21.5, linetype = "dotted")+
-  geom_hline(yintercept = 0.5, linetype = "dotted")+
-  theme_minimal()
-```
-
--   The blue line shows the log-odds of each car being a manual transmission, based on its MPG.
-
--   The black S curve shows the probabilities of each car being a manual, based on its MPG
-
-Taking one car from this as an example...
-
-```{r}
-mtcars |> slice(19) |> select(mpg, log_odds, am, preds_prob)
-```
-
-A car with an MPG rating of 30 has a 93% probability of being a manual transmission

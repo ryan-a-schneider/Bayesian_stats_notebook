@@ -100,7 +100,7 @@ fit_logreg <-brm(data = d_logistic,
                  formula =  y | trials(1) ~ 1 + treatment,
                  prior = c(prior(normal(0, 3), class = Intercept),
                            prior(student_t(5, 0, 1), class = b)),
-                 seed = 3, iter = 1000, cores = 2)
+                 seed = 3, iter = 2500, cores = 3, chains = 3)
 
 #################### DIAGNOSTICS ##############################
 diagnostic_posterior(fit_logreg, diagnostic = c("ESS", "Rhat"))|> 
@@ -112,7 +112,7 @@ pp_check(fit_logreg)
 
 #################### PARAMETERS AND EFFECT SIZE #################################
 # check bayesian parameter estimates
-describe_posterior(fit_logreg, ci_method = "HDI", ci=0.95)
+describe_posterior(fit_logreg, ci_method = "HDI", ci = 0.95)
 
 # compare to frequentist
 glm(y ~ treatment, data = d_logistic, family = "binomial") |> 

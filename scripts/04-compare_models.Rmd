@@ -100,7 +100,7 @@ However, the difference between models' ELPD is a difference score that requires
 
 "[As quick rule](https://avehtari.github.io/modelselection/CV-FAQ.html#12_What_is_the_interpretation_of_ELPD__elpd_loo__elpd_diff),"
 
-> If elpd difference (`elpd_diff` in `loo` package) is less than 4, the difference is small [and the models have "very similar predictive performance"] (Sivula, Magnusson and Vehtari, [2020](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Sivula+etal:2020:loo_uncertainty)). If elpd difference is larger than 4, then compare that difference to standard error of `elpd_diff`...
+> If elpd difference (`elpd_diff` in `loo` package) is less than 4, the difference is small [and the models have "very similar predictive performance"] (Sivula, Magnusson and Vehtari, [2020](https://avehtari.github.io/modelselection/CV-FAQ.html#ref-Sivula+etal:2020:loo_uncertainty)). If elpd difference is larger than 4, then compare that difference to standard error of `elpd_diff`...[if the size of the difference is greater than two SE's, than that could be meaningful.]
 
 `p_loo` is the effective number of parameters in the model. It is a penalty term applied to each model that represents model complexity. Per Vehtari:
 
@@ -162,7 +162,7 @@ b5.2=readRDS(file= here::here("fits", "b05.02.rds"))
 b5.3=readRDS(file= here::here("fits", "b05.03.rds"))
 ```
 
-[https://avehtari.github.io/modelselection/CV-FAQ.html#17_What_to_do_if_I\_have_many_high_Pareto\_(hat{k})%E2%80%99s](https://avehtari.github.io/modelselection/CV-FAQ.html#17_What_to_do_if_I_have_many_high_Pareto_(hat%7Bk%7D)%E2%80%99s)
+[https://avehtari.github.io/modelselection/CV-FAQ.html#17_What_to_do_if_I_have_many_high_Pareto\_(hat{k})%E2%80%99s](https://avehtari.github.io/modelselection/CV-FAQ.html#17_What_to_do_if_I_have_many_high_Pareto_(hat%7Bk%7D)%E2%80%99s)
 
 > The Pareto-k\^ diagnostic estimates how far an individual leave-one-out distribution is from the full distribution. If leaving out an observation changes the posterior too much then importance sampling is not able to give reliable estimate.
 >
