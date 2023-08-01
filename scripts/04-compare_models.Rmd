@@ -25,7 +25,7 @@ b6.7=readRDS(file= here::here("fits", "b06.07.rds"))
 b6.8=readRDS(file= here::here("fits", "b06.08.rds"))
 ```
 
-# Part 3: Comparing Competing Models
+# Part 4: Comparing Competing Models
 
 There are different methods of model comparison that are possible in the Bayesian framework, and the version to use depends on your model's overall goals/purpose.
 

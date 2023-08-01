@@ -29,7 +29,7 @@ Stuff to know about...
 
 -   Sometimes you'll hear about "burn in" in discussions on MCMC, and what an appropriate rate is for the sampler. That does not apply to brms or rstanarm. Also, it is not the same thing as warm-up steps. Ignore it for now.
 
-## II. R code 
+## II. R code
 
 ### brms
 
