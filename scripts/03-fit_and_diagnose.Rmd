@@ -133,19 +133,29 @@ m3 <-update(brms_dummy_single, newdata = practice_data,
 
 The first thing you need to do is pick a sensible prior. See [this page by the Stan development team](https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations) for suggestions on default, weakly-informative priors. The code for this model will be identical to your final model, except for one thing: add `sample_prior="only"`
 
--   In a linear models:
+In a linear models:
 
-    -   The prior for the intercept represents the *average value of y across the whole sample*
+-   The prior for the intercept represents the *average value of y across the whole sample*
 
-    -   The prior for each coefficient represents the expected beta weight (i.e., the change). Thus, you're setting the prior for the expected change between each level of the variable (if categorical) or for each 1-point increase (if continuous), *on that variable's scale*.
+-   The prior for each coefficient represents the expected beta weight (i.e., the change). Thus, you're setting the prior for the expected change between each level of the variable (if categorical) or for each 1-point increase (if continuous), *on that variable's scale*.
 
--   In logistic models:
+In logistic models:
 
-    -   The priors are on the **log-odds** scale; you're specifying your prior belief in terms of the log-odds of y=1.
+-   The priors are on the **log-odds** scale, the same as the beta weight.
 
-    -   The intercept value represents the log-odds of success (y=1), when the predictors are held constant at 0.
+-   It's easiest (for me) to work backwards when setting these priors. For instance, think it terms of odds ratios (i.e., effect size), and then take the inverse of that (via `log()`) to find the appropriate coefficient.
 
-    -   It's easiest (for me) to think it terms of odds ratios, and then take the inverse of that with `log()` to find the coefficient that comes out to, when setting a prior.
+-   If using my method of working backwards, use the following guidelines from the `effectsize()` package, which follows Cohen et al., 2010, to find an appropriate odds ratio:
+
+    -   Very small: $OR<1.68$
+
+    -   Small: $1.68\geq{OR}<3.47$
+
+    -   Medium: $3.47\geq{OR}<6.71$
+
+    -   Large: $OR>6.71$
+
+    -   *Note that the above are based on a standardized scale! Standardize your predictors before using those guidelines!*
 
 ```{r}
 b5.1 <- 
